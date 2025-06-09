@@ -1,47 +1,53 @@
 # TaskGenie
 
-**TaskGenie** es una aplicación de gestión de tareas desarrollada con Python, orientada a objetos y diseñada como proyecto de curso. Está pensada para facilitar la administración de tareas y usuarios a través de una API REST, utilizando un backend basado en FastAPI y una interfaz web renderizada con plantillas Jinja2.
+TaskGenie es una aplicación de gestión de tareas desarrollada en Python, orientada a objetos y diseñada como proyecto de curso. La aplicación gestiona usuarios y tareas con tres roles definidos: profesor, administrador y alumno. TaskGenie utiliza un backend basado en FastAPI, SQLAlchemy con SQLite para la base de datos, Pydantic para la validación de datos, y Jinja2 para renderizar plantillas HTML. Además, incluye mecanismos de autenticación, seguridad y gestión de roles, y está diseñada para ser replicada en GitHub.
 
-## Características
+---
 
-- **Gestión de Usuarios y Roles**  
-  - Tres tipos de usuarios: profesor, administrador y alumno.
-  - Permisología y control de acciones basado en roles.
-  - Registro, edición y bloqueo de usuarios (administrador).
+## 1. Definición y Planificación Inicial
 
-- **Gestión de Tareas**  
-  - Profesores: creación, búsqueda, asignación, cancelación y corrección de tareas.
-  - Alumnos: visualización, edición, culminación y entrega de soluciones de tareas.
-  - Seguimiento y registro de correcciones y feedback.
+### Requerimientos Funcionales
+- **Roles de Usuario:**  
+  - Profesor  
+  - Administrador  
+  - Alumno
 
-- **Autenticación y Seguridad**  
-  - Sistema de login con validación de credenciales.
-  - Gestión de contraseñas seguras (hashing con bcrypt).
-  - Uso de variables de entorno para configuraciones sensibles.
-  - Dependencias en FastAPI para proteger endpoints según el rol del usuario.
+- **Permisología por Rol:**  
+  Cada rol tiene acciones específicas dentro del sistema.
 
-- **Interfaz Web Dinámica**  
-  - Plantillas HTML renderizadas con Jinja2.
-  - Formularios para login, registro, gestión de tareas y perfil de usuario.
-  - Dashboards específicos para cada rol (profesor, alumno, administrador).
+- **Gestión de Tareas:**  
+  - Creación, asignación, edición, culminación y corrección de tareas.  
+  - Bloqueo y administración de usuarios (por el administrador).
 
-## Tecnologías
+- **Módulos:**  
+  - Login/Registro  
+  - Mi perfil  
+  - Administración de usuarios
 
+### Requerimientos Tecnológicos
 - **Backend:**  
-  - [FastAPI](https://fastapi.tiangolo.com/)
-  - [SQLAlchemy](https://www.sqlalchemy.org/) (con SQLite)
-  - [Pydantic](https://pydantic-docs.helpmanual.io/)
-  - [python-dotenv](https://pypi.org/project/python-dotenv/)
-  - [bcrypt](https://pypi.org/project/bcrypt/)
+  - FastAPI  
+  - SQLAlchemy (SQLite)  
+  - Pydantic  
+  - Jinja2 (plantillas)  
+  - python-dotenv (variables de entorno)  
+  - bcrypt (hashing de contraseñas)
+
+- **Autenticación y Seguridad:**  
+  - Gestión de roles y permisos (usando JWT o dependencias para validar roles)  
+  - Hashing y verificación de contraseñas
 
 - **Frontend:**  
-  - **Jinja2** para la generación de plantillas HTML
+  - Plantillas HTML generadas con Jinja2
 
-- **Control de Versiones y Automatización:**  
-  - Git y GitHub para el control de versiones.
-  - (Opcional) GitHub Actions para CI/CD.
+---
 
-## Estructura del Proyecto
+## 2. Configuración del Entorno y Estructura del Proyecto
 
-La estructura del proyecto es modular y está organizada en el siguiente esquema:
+### 2.1. Crear el Proyecto y Configurar el Entorno Virtual
 
+```bash
+mkdir taskgenie
+cd taskgenie
+python -m venv env
+source env/bin/activate  # En Windows: env\Scripts\activate

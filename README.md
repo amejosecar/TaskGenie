@@ -49,8 +49,8 @@ TaskGenie es una aplicación de gestión de tareas desarrollada en Python, orien
 ```bash
 mkdir taskgenie
 cd taskgenie
-python -m venv env
-source env/bin/activate  # En Windows: env\Scripts\activate
+python -m venv venv
+source venv\Scripts\activate  # En Windows: env\Scripts\activate
 2.2. Instalar Dependencias
 bash
 pip install fastapi uvicorn sqlalchemy pydantic jinja2 python-dotenv bcrypt

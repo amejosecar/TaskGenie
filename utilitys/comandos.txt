@@ -1,0 +1,10 @@
+Para correr en powershell
+
+Get-ChildItem -Directory | ForEach-Object {
+    # Imprime el nombre de la subcarpeta
+    "Carpeta: $($_.Name)"
+    # Lista los archivos de la subcarpeta (sin incluir subdirectorios)
+    Get-ChildItem -File -Path $_.FullName | ForEach-Object {
+        "    Archivo: $($_.Name)"
+    }
+} | Out-File -Encoding utf8 "listado.txt"

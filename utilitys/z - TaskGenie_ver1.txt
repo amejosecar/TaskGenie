@@ -1,0 +1,345 @@
+----------------------------------------
+# C:\americo\API\TaskGenie\.env
+# Archivo de configuración de variables sensibles.
+DATABASE_URL=sqlite:///./taskgenie.db
+SECRET_KEY=tu_clave_secreta
+DEBUG_MODE=True
+
+----------------------------------------
+# C:\americo\API\TaskGenie\auth.py
+# app/auth.py
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from database import SessionLocal, Usuario
+from pydantic import BaseModel
+
+router = APIRouter()
+
+# Dependencia para obtener la sesión de la base de datos.
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# Schema para registrar un usuario.
+class UsuarioCreate(BaseModel):
+    nombre: str
+    email: str
+    clave: str  # Se enviará en texto plano (solo para práctica)
+
+# Schema para el login, que requiere solo email y clave.
+class UsuarioLogin(BaseModel):
+    email: str
+    clave: str
+
+@router.post("/registro/")
+def registrar_usuario(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+    nuevo_usuario = Usuario(nombre=usuario.nombre, email=usuario.email, clave=usuario.clave)
+    db.add(nuevo_usuario)
+    db.commit()
+    db.refresh(nuevo_usuario)
+    return {"mensaje": "Usuario registrado correctamente", "id": nuevo_usuario.id}
+
+@router.get("/recuperar/{email}")
+def recuperar_clave(email: str, db: Session = Depends(get_db)):
+    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    if usuario:
+        return {"mensaje": f"La contraseña para {email} es: {usuario.clave}"}
+    return {"error": "Usuario no encontrado"}
+
+@router.post("/login")
+def login(usuario: UsuarioLogin, db: Session = Depends(get_db)):
+    # Buscamos al usuario por email en la base de datos.
+    db_usuario = db.query(Usuario).filter(Usuario.email == usuario.email).first()
+    if not db_usuario:
+        return {"error": "Credenciales inválidas"}
+    # Comparación simple de contraseñas en texto plano (no recomendado para producción).
+    if db_usuario.clave != usuario.clave:
+        return {"error": "Credenciales inválidas"}
+    return {"mensaje": "Login exitoso", "usuario_id": db_usuario.id}
+
+----------------------------------------
+# C:\americo\API\TaskGenie\config.py
+# congig.py
+# # Manejo de variables de entorno.
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Settings:
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    SECRET_KEY: str = os.getenv("SECRET_KEY")
+    DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "False").lower() == "true"
+
+settings = Settings()
+
+----------------------------------------
+# C:\americo\API\TaskGenie\database.py
+# database.py
+# Configuración de la conexión a SQLite.
+from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+# Conectar a SQLite
+DATABASE_URL = "sqlite:///./taskgenie.db"
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base de datos
+Base = declarative_base()
+
+# Modelo de Usuario
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    clave = Column(String, nullable=False)  # Aquí se guarda la contraseña en texto plano (No recomendado en producción)
+
+# Crear tablas en la BD
+Base.metadata.create_all(bind=engine)
+
+
+----------------------------------------
+# C:\americo\API\TaskGenie\main.py
+# app/main.py
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.templating import Jinja2Templates
+
+# Importa los routers; ajusta las rutas según la estructura de tu proyecto.
+from auth import router as auth_router
+from routers import usuarios, tareas, perfil, admin
+
+app = FastAPI(title="TaskGenie")
+
+# Configura la carpeta de templates.
+templates = Jinja2Templates(directory="app/templates")
+
+# Registro de routers.
+# Incluiremos el router de autenticación sin prefijo para que sus endpoints sean /login, /registro, etc.
+app.include_router(auth_router, tags=["Autenticación"])
+app.include_router(usuarios.router, prefix="/usuarios", tags=["Usuarios"])
+app.include_router(tareas.router, prefix="/tareas", tags=["Tareas"])
+app.include_router(perfil.router, prefix="/perfil", tags=["Perfil"])
+app.include_router(admin.router, prefix="/admin", tags=["Administración"])
+
+# Endpoint de inicio: Muestra la página index.html.
+@app.get("/")
+async def index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# Handler global para errores 404.
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc: HTTPException):
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        return templates.TemplateResponse(
+            "errores.html", 
+            {
+                "request": request, 
+                "mensaje": "La página que buscas no fue encontrada. Por favor, revisa la URL o regresa al inicio."
+            },
+            status_code=404
+        )
+    return JSONResponse(
+        status_code=404,
+        content={"detail": "La página que buscas no fue encontrada. Por favor, revisa la URL o regresa al inicio."}
+    )
+
+----------------------------------------
+# C:\americo\API\TaskGenie\models.py
+# models.py
+# Modelos de SQLAlchemy.
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Date, Enum
+import enum
+
+Base = declarative_base()
+
+class RolEnum(enum.Enum):
+    profesor = "profesor"
+    alumno = "alumno"
+    administrador = "administrador"
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String, nullable=False)
+    apellido = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    clave = Column(String, nullable=False)  # Almacenada como hash
+    fecha_nacimiento = Column(Date)
+    rol = Column(Enum(RolEnum), nullable=False)
+
+class Tarea(Base):
+    __tablename__ = "tareas"
+    id = Column(Integer, primary_key=True, index=True)
+    titulo = Column(String, nullable=False)
+    descripcion = Column(String)
+    importancia = Column(String)
+    fecha_entrega = Column(Date)
+    estado = Column(String, default="asignada")
+    asignado_a = Column(Integer)  # Referencia al id del alumno
+    # Agrega otros campos como solución o correcciones
+
+----------------------------------------
+# C:\americo\API\TaskGenie\requirements.txt
+# Error al leer este archivo: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+
+----------------------------------------
+# C:\americo\API\TaskGenie\schemas.py
+#  schemas.py
+# Schemas con Pydantic.
+from pydantic import BaseModel, EmailStr
+from datetime import date
+from enum import Enum
+
+class RolEnum(str, Enum):
+    profesor = "profesor"
+    alumno = "alumno"
+    administrador = "administrador"
+
+class UsuarioCreate(BaseModel):
+    nombre: str
+    apellido: str
+    email: EmailStr
+    clave: str
+    fecha_nacimiento: date
+    rol: RolEnum
+
+class UsuarioResponse(BaseModel):
+    id: int
+    nombre: str
+    apellido: str
+    email: EmailStr
+    fecha_nacimiento: date
+    rol: RolEnum
+    class Config:
+        orm_mode = True
+
+# Define esquemas para Tarea y otras entidades según lo necesites.
+
+----------------------------------------
+# C:\americo\API\TaskGenie\taskgenie.db
+# Error al leer este archivo: 'utf-8' codec can't decode byte 0x86 in position 98: invalid start byte
+
+----------------------------------------
+# C:\americo\API\TaskGenie\__init__.py
+
+----------------------------------------
+# C:\americo\API\TaskGenie\routers\admin.py
+# Endpoints para administración de usuarios.
+# routers/tareas.py
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/")
+def listar_tareas():
+    return {"mensaje": "Listado de tareas"}
+
+----------------------------------------
+# C:\americo\API\TaskGenie\routers\perfil.py
+# Endpoints para ver y editar la información del perfil.
+# routers/tareas.py
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/")
+def listar_tareas():
+    return {"mensaje": "Listado de tareas"}
+
+----------------------------------------
+# C:\americo\API\TaskGenie\routers\tareas.py
+# Endpoints para la gestión de tareas.
+# routers/tareas.py
+from fastapi import APIRouter
+
+router = APIRouter()
+
+@router.get("/")
+def listar_tareas():
+    return {"mensaje": "Listado de tareas"}
+
+----------------------------------------
+# C:\americo\API\TaskGenie\routers\usuarios.py
+# Endpoints para registro, edición, búsqueda y bloqueo de usuarios.
+from fastapi import APIRouter
+
+# Crear el objeto router
+router = APIRouter()
+
+@router.get("/")
+def obtener_usuarios():
+    # Ejemplo simple: retorna una lista vacía o un mensaje
+    return {"mensaje": "Listado de usuarios"}
+
+----------------------------------------
+# C:\americo\API\TaskGenie\routers\__init__.py
+
+----------------------------------------
+# C:\americo\API\TaskGenie\templates\dashboard_admin.html
+<!-- Dashboard para administradores -->
+
+----------------------------------------
+# C:\americo\API\TaskGenie\templates\dashboard_alumno.html
+<!-- Dashboard para alumnos -->
+
+----------------------------------------
+# C:\americo\API\TaskGenie\templates\dashboard_profesor.html
+<!-- Dashboard para profesores -->
+
+----------------------------------------
+# C:\americo\API\TaskGenie\templates\errores.html
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Error 404 - No Encontrado</title>
+  </head>
+  <body>
+    <h1>Error 404</h1>
+    <p>{{ mensaje }}</p>
+    <a href="/">Volver al inicio</a>
+  </body>
+</html>
+
+----------------------------------------
+# C:\americo\API\TaskGenie\templates\index.html
+<!-- index.html - Página de inicio con formulario de login -->
+<!-- templates/index.html - Página de inicio con formulario de login -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>TaskGenie - Login</title>
+  </head>
+  <body>
+    <h1>Bienvenido a TaskGenie</h1>
+    <form action="/login" method="post">
+      <label>Email:</label>
+      <input type="text" name="email" required />
+      <br />
+      <label>Clave:</label>
+      <input type="password" name="clave" required />
+      <br />
+      <button type="submit">Ingresar</button>
+    </form>
+    <a href="/registro">Registrar una nueva cuenta</a>
+    Otros enlaces para recuperación de clave o usuario
+  </body>
+</html>
+
+----------------------------------------
+# C:\americo\API\TaskGenie\templates\login.html
+<!-- Vista de login -->
+
+----------------------------------------
+# C:\americo\API\TaskGenie\templates\registro.html
+<!-- Formulario de registro -->
+

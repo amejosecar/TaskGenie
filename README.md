@@ -7,37 +7,43 @@ TaskGenie es una aplicación de gestión de tareas desarrollada en Python, orien
 ## 1. Definición y Planificación Inicial
 
 ### Requerimientos Funcionales
-- **Roles de Usuario:**  
-  - Profesor  
-  - Administrador  
+
+- **Roles de Usuario:**
+
+  - Profesor
+  - Administrador
   - Alumno
 
 - **Permisología por Rol:**  
   Cada rol tiene acciones específicas dentro del sistema.
 
-- **Gestión de Tareas:**  
-  - Creación, asignación, edición, culminación y corrección de tareas.  
+- **Gestión de Tareas:**
+
+  - Creación, asignación, edición, culminación y corrección de tareas.
   - Bloqueo y administración de usuarios (por el administrador).
 
-- **Módulos:**  
-  - Login/Registro  
-  - Mi perfil  
+- **Módulos:**
+  - Login/Registro
+  - Mi perfil
   - Administración de usuarios
 
 ### Requerimientos Tecnológicos
-- **Backend:**  
-  - FastAPI  
-  - SQLAlchemy (SQLite)  
-  - Pydantic  
-  - Jinja2 (plantillas)  
-  - python-dotenv (variables de entorno)  
+
+- **Backend:**
+
+  - FastAPI
+  - SQLAlchemy (SQLite)
+  - Pydantic
+  - Jinja2 (plantillas)
+  - python-dotenv (variables de entorno)
   - bcrypt (hashing de contraseñas)
 
-- **Autenticación y Seguridad:**  
-  - Gestión de roles y permisos (usando JWT o dependencias para validar roles)  
+- **Autenticación y Seguridad:**
+
+  - Gestión de roles y permisos (usando JWT o dependencias para validar roles)
   - Hashing y verificación de contraseñas
 
-- **Frontend:**  
+- **Frontend:**
   - Plantillas HTML generadas con Jinja2
 
 ---
@@ -201,3 +207,103 @@ Resumen Final
 TaskGenie se desarrollará de manera modular, integrando el backend (FastAPI, SQLAlchemy, Pydantic y Jinja2) y replicado en GitHub para facilitar el control de versiones y colaboraciones. Este plan abarca desde la configuración inicial del entorno, la estructura de directorios, la definición de modelos y endpoints, hasta la documentación y despliegue.
 
 TaskGenie es tu punto de partida para aprender y desarrollar una aplicación real de gestión de tareas utilizando tecnologías modernas en Python.
+
+taskgenie/ │ ├── app/ │ ├── init.py │ ├── main.py # Punto de entrada de la aplicación. │ ├── config.py # Configuración y manejo de variables de entorno. │ ├── database.py # Conexión a la base de datos SQLite y definición de sesión. │ ├── models.py # Modelos de datos usando SQLAlchemy. │ ├── schemas.py # Validación de datos con Pydantic. │ ├── auth.py # Implementación de autenticación, hashing y emisión de tokens. │ └── routers/ │ ├── init.py │ ├── usuarios.py # Endpoints para registro, edición y gestión de usuarios. │ ├── tareas.py # Endpoints para la creación, asignación, edición y corrección de tareas. │ ├── perfil.py # Endpoints para la visualización y edición del perfil. │ └── admin.py # Endpoints dedicados a la administración de usuarios. │ ├── templates/ │ ├── index.html # Página de inicio y formulario de login. │ ├── login.html # Vista de login. │ ├── registro.html # Formulario de registro. │ ├── dashboard_profesor.html # Dashboard y funcionalidades para profesores. │ ├── dashboard_alumno.html # Dashboard y funcionalidades para alumnos. │ ├── dashboard_admin.html # Dashboard para administradores. │ └── ... (otros formularios y vistas) │ ├── .env # Archivo para variables sensibles. ├── requirements.txt # Lista de dependencias del proyecto. ├── README.md # Este archivo. └── tests/ # Pruebas unitarias e integración. └── ...
+```
+
+...
+
+## Instalación y Configuración
+
+### 1. Clonar el Repositorio
+
+```bash
+git clone https://github.com/tu_usuario/TaskGenie.git
+cd TaskGenie
+2. Configurar el Entorno Virtual
+bash
+python -m venv venv
+source venv/bin/activate  # En Linux/macOS
+# ó
+venv\Scripts\activate    # En Windows
+3. Instalar Dependencias
+Asegúrate de tener las versiones recomendadas de Python y luego instala las dependencias:
+
+bash
+pip install -r requirements.txt
+Contenido sugerido para requirements.txt:
+
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+jinja2
+python-dotenv
+bcrypt
+4. Configurar Variables de Entorno
+Crea o edita el archivo .env en el directorio raíz y añade las variables necesarias (por ejemplo, la clave secreta para JWT):
+
+dotenv
+SECRET_KEY=tu_clave_secreta
+DATABASE_URL=sqlite:///./taskgenie.db
+Uso y Ejecución
+Inicia la aplicación con Uvicorn:
+
+bash
+uvicorn app.main:app --reload
+Accede a la documentación interactiva de FastAPI en: http://localhost:8000/docs.
+
+Visita la página de inicio para iniciar sesión o registrarte.
+
+Desarrollo y Buenas Prácticas
+Modularidad y Separación de Responsabilidades: El proyecto separa claramente la lógica de la base de datos, autenticación, validación y rutas, lo que facilita el mantenimiento y escalabilidad.
+
+Comentarios y Documentación: Se recomienda describir cada función y endpoint con docstrings para facilitar la comprensión del código, y aprovechar la documentación automática de FastAPI.
+
+Control de Versiones y Uso de Git:
+
+Realiza commits frecuentes con mensajes descriptivos.
+
+Utiliza ramas (branches) para el desarrollo de nuevas características y revisa antes de integrar a la rama principal (main).
+
+Integra herramientas de CI/CD (por ejemplo, GitHub Actions) para ejecutar tus tests automáticamente, asegurando la calidad del código.
+
+Pruebas e Integración Continua
+Pruebas: Implementa pruebas unitarias e integración en la carpeta tests/ para validar tanto la lógica de negocio como la integridad de los endpoints.
+
+Integración Continua: Configura GitHub Actions para ejecutar tus pruebas con cada push o pull request. Esto mejora la robustez del proyecto y asegura que nuevos cambios no rompan funcionalidades existentes.
+
+Contribución
+¡Las contribuciones son bienvenidas!
+
+Haz un fork del proyecto.
+
+Crea una rama para tu nueva funcionalidad (git checkout -b feature/nueva-funcionalidad).
+
+Realiza tus cambios y asegúrate de incluir nuevas pruebas si es necesario.
+
+Envía un pull request explicando tus cambios.
+
+Consulta el archivo CONTRIBUTING.md para más detalles (si decides agregarlo).
+
+Licencia
+Este proyecto se distribuye bajo la licencia MIT License.
+
+Contacto
+Si tienes alguna duda o comentario, por favor abre un issue en GitHub o envía un correo a tu_email@ejemplo.com.
+
+Más Ideas y Recursos Relacionados
+Guías de Buenas Prácticas: Explora la guía de Clean Code para mejorar la calidad de tu código.
+
+Integración con Docker: Considera crear un Dockerfile para facilitar el despliegue y mejorar la portabilidad del proyecto.
+
+Documentación: Integra herramientas como MkDocs para documentar las funcionalidades y arquitectura del proyecto de forma más interactiva.
+
+CI/CD Avanzado: Explora la integración con plataformas de CI/CD, como GitHub Actions o Travis CI, para automatizar pruebas y despliegues.
+
+
+
+---
+
+Esta versión de README integra una estructura profesional, detalla las dependencias, guía al usuario en la instalación, y motiva la colaboración, al mismo tiempo que se adhiere a las mejores prácticas de desarrollo web en GitHub. ¿Te gustaría profundizar en algún apartado en particular o agregar nuevas secciones?
+```

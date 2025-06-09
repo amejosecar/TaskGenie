@@ -1,1 +1,23 @@
-<!-- Página de inicio con formulario de login -->
+<!-- index.html - Página de inicio con formulario de login -->
+<!-- templates/index.html - Página de inicio con formulario de login -->
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>TaskGenie - Login con Form</title>
+  </head>
+  <body>
+    <h1>Login usando Form</h1>
+    <form action="/login_form" method="post">
+      <label>Email:</label>
+      <input type="text" name="email" required />
+      <br />
+      <label>Clave:</label>
+      <input type="password" name="clave" required />
+      <br />
+      <button type="submit">Ingresar</button>
+    </form>
+    <p>¿No tienes una cuenta? <a href="/registro">Regístrate aquí</a></p>
+  </body>
+</html>

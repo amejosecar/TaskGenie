@@ -1,0 +1,59 @@
+<!-- admin_usuarios.html -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Administración de Usuarios - Listado</title>
+  </head>
+  <body>
+    <h1>Listado de Usuarios</h1>
+    <table id="tabla-usuarios" border="1">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Rol</th>
+          <th>Bloqueado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <script>
+      fetch("/admin/usuarios")
+        .then((response) => response.json())
+        .then((usuarios) => {
+          const tbody = document.querySelector("#tabla-usuarios tbody");
+          usuarios.forEach((usuario) => {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${usuario.id}</td>
+              <td>${usuario.nombre} ${usuario.apellido}</td>
+              <td>${usuario.email}</td>
+              <td>${usuario.rol}</td>
+              <td>${usuario.bloqueado ? "Sí" : "No"}</td>
+              <td>
+                <a href="/admin/usuarios/${usuario.id}">Ver detalle</a>
+                <button onclick="eliminarUsuario(${
+                  usuario.id
+                })">Eliminar</button>
+              </td>
+            `;
+            tbody.appendChild(tr);
+          });
+        });
+
+      function eliminarUsuario(userId) {
+        if (confirm("¿Estás seguro de eliminar este usuario?")) {
+          fetch(`/admin/usuarios/${userId}`, { method: "DELETE" })
+            .then((response) => response.json())
+            .then((data) => {
+              alert(data.mensaje);
+              location.reload();
+            });
+        }
+      }
+    </script>
+  </body>
+</html>

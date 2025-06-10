@@ -7,3 +7,4 @@ router = APIRouter()
 @router.get("/")
 def listar_tareas():
     return {"mensaje": "Listado de tareas"}
+

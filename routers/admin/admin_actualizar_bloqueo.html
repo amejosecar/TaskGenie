@@ -1,0 +1,38 @@
+<!-- admin_actualizar_bloqueo.html -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Actualizar Bloqueo de Usuario</title>
+  </head>
+  <body>
+    <h1>Actualizar Estado de Bloqueo</h1>
+    <form id="formBloqueo">
+      <input type="hidden" id="userId" value="<!-- ID del usuario -->" />
+      <label for="bloqueado">Bloquear Usuario:</label>
+      <select id="bloqueado" name="bloqueado" required>
+        <option value="true">Sí</option>
+        <option value="false" selected>No</option>
+      </select>
+      <button type="submit">Actualizar Bloqueo</button>
+    </form>
+    <script>
+      const form = document.getElementById("formBloqueo");
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const userId = document.getElementById("userId").value;
+        // Convertir string de "true" o "false" a boolean
+        const bloqueado = document.getElementById("bloqueado").value === "true";
+        fetch(`/admin/usuarios/${userId}/bloqueo`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bloqueado }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert("Estado de bloqueo actualizado");
+          });
+      });
+    </script>
+  </body>
+</html>

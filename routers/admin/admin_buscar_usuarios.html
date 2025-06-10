@@ -1,0 +1,43 @@
+<!-- admin_buscar_usuarios.html -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Buscar Usuarios</title>
+  </head>
+  <body>
+    <h1>Buscar Usuarios</h1>
+    <form id="formBusqueda">
+      <label for="rol">Rol:</label>
+      <select id="rol">
+        <option value="">Todos</option>
+        <option value="profesor">Profesor</option>
+        <option value="alumno">Alumno</option>
+        <option value="administrador">Administrador</option>
+      </select>
+      <label for="email">Email:</label>
+      <input type="text" id="email" placeholder="Buscar por email" />
+      <button type="button" onclick="buscarUsuarios()">Buscar</button>
+    </form>
+    <div id="resultados"></div>
+    <script>
+      function buscarUsuarios() {
+        const rol = document.getElementById("rol").value;
+        const email = document.getElementById("email").value;
+        let url = "/admin/usuarios/search?";
+        if (rol) url += `rol=${rol}&`;
+        if (email) url += `email=${email}`;
+        fetch(url)
+          .then((response) => response.json())
+          .then((data) => {
+            let html = "<ul>";
+            data.forEach((usuario) => {
+              html += `<li>${usuario.id} - ${usuario.nombre} (${usuario.rol})</li>`;
+            });
+            html += "</ul>";
+            document.getElementById("resultados").innerHTML = html;
+          });
+      }
+    </script>
+  </body>
+</html>

@@ -5,10 +5,13 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>TaskGenie - Login con Form</title>
+    <title>TaskGenie - Login</title>
   </head>
   <body>
     <h1>Login usando Form</h1>
+    {% if error %}
+    <p style="color: red">{{ error }}</p>
+    {% endif %}
     <form action="/login_form" method="post">
       <label>Email:</label>
       <input type="text" name="email" required />

@@ -1,5 +1,6 @@
 #  schemas.py
 # Schemas con Pydantic.
+# schemas.py
 from pydantic import BaseModel, EmailStr
 from datetime import date
 from enum import Enum
@@ -14,7 +15,7 @@ class UsuarioCreate(BaseModel):
     apellido: str
     email: EmailStr
     clave: str
-    fecha_nacimiento: date
+    fecha_nacimiento: date  # Ahora date
     rol: RolEnum
 
 class UsuarioResponse(BaseModel):
@@ -24,7 +25,18 @@ class UsuarioResponse(BaseModel):
     email: EmailStr
     fecha_nacimiento: date
     rol: RolEnum
-    class Config:
-        orm_mode = True
 
-# Define esquemas para Tarea y otras entidades según lo necesites.
+    class Config:
+        # Si estás usando Pydantic V1, deja: orm_mode = True
+        # Para Pydantic V2:
+        from_attributes = True
+
+class UsuarioUpdateRol(BaseModel):
+    rol: RolEnum
+
+class UsuarioUpdateBloqueo(BaseModel):
+    bloqueado: bool
+
+class MensajeResponse(BaseModel):
+    mensaje: str
+

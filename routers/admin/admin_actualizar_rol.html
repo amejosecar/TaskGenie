@@ -1,0 +1,43 @@
+<!-- admin_actualizar_rol.html -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Actualizar Rol de Usuario</title>
+  </head>
+  <body>
+    <h1>Actualizar Rol</h1>
+    <form id="formRol">
+      <input
+        type="hidden"
+        id="userId"
+        value="<!-- Aquí se establece el id del usuario -->"
+      />
+      <label for="rol">Nuevo Rol:</label>
+      <select id="rol" name="rol" required>
+        <option value="profesor">Profesor</option>
+        <option value="alumno">Alumno</option>
+        <option value="administrador">Administrador</option>
+      </select>
+      <button type="submit">Actualizar Rol</button>
+    </form>
+    <script>
+      const form = document.getElementById("formRol");
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const userId = document.getElementById("userId").value;
+        const rol = document.getElementById("rol").value;
+        fetch(`/admin/usuarios/${userId}/rol`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rol }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            alert("Rol actualizado");
+            // opcional: redirigir o actualizar UI
+          });
+      });
+    </script>
+  </body>
+</html>

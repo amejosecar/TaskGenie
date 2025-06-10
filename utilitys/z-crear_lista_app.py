@@ -26,9 +26,12 @@ paths_to_process = [
     r"C:\americo\API\TaskGenie\templates\dashboard_alumno.html",
     r"C:\americo\API\TaskGenie\templates\dashboard_profesor.html",
     r"C:\americo\API\TaskGenie\templates\errores.html",
+    r"C:\americo\API\TaskGenie\templates\dashboard.html",
     r"C:\americo\API\TaskGenie\templates\index.html",
     r"C:\americo\API\TaskGenie\templates\login.html",
-    r"C:\americo\API\TaskGenie\templates\registro.html"
+    r"C:\americo\API\TaskGenie\templates\registro.html",
+    r"C:\americo\API\TaskGenie\services\auth_service.py"
+
 ]
 
 def write_files_to_txt(file_paths, output_file):

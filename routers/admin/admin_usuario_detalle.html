@@ -1,0 +1,29 @@
+<!-- admin_usuario_detalle.html -->
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Detalle del Usuario</title>
+  </head>
+  <body>
+    <h1>Detalle de Usuario</h1>
+    <div id="detalle-usuario"></div>
+    <script>
+      // Suponiendo que el ID viene en la URL vía query string (por ejemplo: ?id=3)
+      const params = new URLSearchParams(window.location.search);
+      const userId = params.get("id");
+      fetch(`/admin/usuarios/${userId}`)
+        .then((response) => response.json())
+        .then((usuario) => {
+          const contenedor = document.getElementById("detalle-usuario");
+          contenedor.innerHTML = `
+            <p>ID: ${usuario.id}</p>
+            <p>Nombre: ${usuario.nombre} ${usuario.apellido}</p>
+            <p>Email: ${usuario.email}</p>
+            <p>Rol: ${usuario.rol}</p>
+            <p>Bloqueado: ${usuario.bloqueado ? "Sí" : "No"}</p>
+          `;
+        });
+    </script>
+  </body>
+</html>

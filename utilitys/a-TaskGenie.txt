@@ -1,27 +1,30 @@
 ----------------------------------------
 # C:\americo\API\TaskGenie\.env
 # Archivo de configuración de variables sensibles.
-DATABASE_URL=sqlite:///./taskgenie.db
+# Archivo raíz: .env
+DATABASE_URL=sqlite:///instance/taskgenie.db
 SECRET_KEY=tu_clave_secreta
 DEBUG_MODE=True
+
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\auth.py
 # auth.py (ubicado en C:\americo\API\TaskGenie\auth.py)
-# 
-
-from fastapi import APIRouter, Depends, Form, HTTPException, status, Request, Body
-from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from database import SessionLocal, Usuario
-from services.auth_service import registrar_usuario, autenticar_usuario
+# auth.py
+# auth.py
+from fastapi import (
+    APIRouter, Depends, Form, Request, HTTPException, status
+)
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+from database import SessionLocal
+from services.auth_service import autenticar_usuario, registrar_usuario
+
+router    = APIRouter(tags=["Autenticación"])
 templates = Jinja2Templates(directory="templates")
 
-# Dependencia para obtener la sesión de la base de datos.
 def get_db():
     db = SessionLocal()
     try:
@@ -29,295 +32,282 @@ def get_db():
     finally:
         db.close()
 
-# =========================== Endpoints JSON ===========================
-class UsuarioCreate(BaseModel):
-    nombre: str
-    apellido: str
-    edad: int
-    fecha_nacimiento: str  # Formato YYYY-MM-DD
-    email: str
-    clave: str
-    rol: str
+@router.get("/login", response_class=HTMLResponse)
+def login_form_get(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-class UsuarioLogin(BaseModel):
-    email: str
-    clave: str
-
-@router.post("/api/registro", response_model=dict)
-def registrar_usuario_json(usuario: UsuarioCreate, db: Session = Depends(get_db)):
-    try:
-        nuevo_usuario = registrar_usuario(
-            db,
-            nombre=usuario.nombre,
-            apellido=usuario.apellido,
-            edad=usuario.edad,
-            fecha_nacimiento=usuario.fecha_nacimiento,
-            email=usuario.email,
-            rol=usuario.rol,
-            clave=usuario.clave
-            
+@router.post("/login_form")
+def login_form(
+    request: Request,
+    email: str = Form(...),
+    clave: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    user = autenticar_usuario(db, email, clave)
+    if not user:
+        return templates.TemplateResponse(
+            "index.html",
+            {"request": request, "error": "Credenciales inválidas."}
         )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(e)
-        )
-    return {"mensaje": "Usuario registrado correctamente (JSON)", "id": nuevo_usuario.id}
 
-@router.post("/api/login", response_model=dict)
-def login_json(usuario: UsuarioLogin, db: Session = Depends(get_db)):
-    usuario_db = autenticar_usuario(db, email=usuario.email, clave=usuario.clave)
-    if not usuario_db:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas."
-        )
-    return {"mensaje": "Login exitoso (JSON)", "usuario_id": usuario_db.id}
+    # destino según rol
+    if user.rol.value == "administrador":
+        destino = "/dashboard_admin"
+    elif user.rol.value == "profesor":
+        destino = "/dashboard_profesor"
+    else:
+        destino = "/dashboard_alumno"
 
-# ======================== Endpoints para Formularios HTML =======================
+    response = RedirectResponse(url=destino, status_code=status.HTTP_302_FOUND)
+    response.set_cookie("user_id", str(user.id), httponly=True)
+    return response
+
 @router.get("/registro", response_class=HTMLResponse)
 def registro_form_get(request: Request):
     return templates.TemplateResponse("registro.html", {"request": request})
 
-
-@router.post("/registro_form")
-def registrar_usuario_form(
+@router.post("/registro_form", response_class=HTMLResponse)
+def registro_form_post(
+    request: Request,
     nombre: str = Form(...),
     apellido: str = Form(...),
-    edad: int = Form(...),
-    fecha_nacimiento: str = Form(...),  # Formato YYYY-MM-DD
+    edad: int = Form(...),                   
+    fecha_nacimiento: str = Form(...),
     email: str = Form(...),
     rol: str = Form(...),
     clave: str = Form(...),
     db: Session = Depends(get_db)
 ):
     try:
-        nuevo_usuario = registrar_usuario(
+        # registrar_usuario parsea fecha y maneja IntegrityError
+        registrar_usuario(
             db,
             nombre=nombre,
             apellido=apellido,
+            email=email,
             edad=edad,
             fecha_nacimiento=fecha_nacimiento,
-            email=email,
             rol=rol,
             clave=clave
         )
     except ValueError as e:
-        return templates.TemplateResponse("registro.html", {"request": {}, "error": str(e)})
-    return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
-
-
-@router.get("/login", response_class=HTMLResponse)
-def login_form_get(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-
-@router.post("/login_form")
-def login_form(
-    email: str = Form(...),
-    clave: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    db_usuario = autenticar_usuario(db, email=email, clave=clave)
-    if not db_usuario:
-        return templates.TemplateResponse("index.html", {"request": {}, "error": "Credenciales inválidas."})
-    
-    # Verificar el rol y redireccionar según corresponda:
-    if db_usuario.rol == "Administrador":
-        # Redirigir a la ruta definida, NO a la carpeta de templates.
-        return RedirectResponse(url="/dashboard_admin", status_code=status.HTTP_302_FOUND)
-    else:
-        return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
-
-
-
-# ================= Endpoint Alternativo para Pruebas en Swagger =================
-# Este endpoint usa Body y un modelo JSON, por lo que Swagger mostrará los parámetros.
-class UsuarioForm(BaseModel):
-    nombre: str
-    apellido: str
-    edad: int
-    fecha_nacimiento: str  # YYYY-MM-DD
-    email: str
-    clave: str
-    rol: str
-
-@router.post("/registro_form_alt")
-def registrar_usuario_form_alt(form: UsuarioForm = Body(...), db: Session = Depends(get_db)):
-    try:
-        nuevo_usuario = registrar_usuario(
-            db,
-            nombre=form.nombre,
-            apellido=form.apellido,
-            edad=form.edad,
-            fecha_nacimiento=form.fecha_nacimiento,
-            email=form.email,
-            rol=form.rol,
-            clave=form.clave
-            
+        # vuelvo a mostrar el formulario con el mensaje de error
+        return templates.TemplateResponse(
+            "registro.html",
+            {"request": request, "error": str(e)}
         )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    return {"mensaje": "Usuario registrado correctamente (Form Alternative)", "id": nuevo_usuario.id}
+
+    # al crear OK, redirijo al login
+    return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\config.py
 # congig.py
 # # Manejo de variables de entorno.
-import os
-from dotenv import load_dotenv
+# config.py
+from pydantic_settings import BaseSettings  # ← Corrección
+from pydantic import AnyUrl
 
-load_dotenv()
+class Settings(BaseSettings):
+    database_url: AnyUrl
+    secret_key: str
+    debug_mode: bool = False
 
-class Settings:
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
-    DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "False").lower() == "true"
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 settings = Settings()
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\database.py
 # database.py
-# Configuración de la conexión a SQLite.
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import sessionmaker, declarative_base
+# app/database.py
+import os
+from pathlib import Path
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from config import settings
 
-DATABASE_URL = "sqlite:///./taskgenie.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# Convertimos a string
+raw_url = str(settings.database_url)
+
+# Solo para SQLite local: garantizamos carpeta 'instance'
+if raw_url.startswith("sqlite:///"):
+    # extraemos la parte después de sqlite:///
+    relative_path = raw_url.replace("sqlite:///", "")
+    db_file = Path(relative_path)
+    instance_dir = db_file.parent
+
+    # Si la carpeta no existe, la creamos
+    if not instance_dir.exists():
+        instance_dir.mkdir(parents=True, exist_ok=True)
+
+    db_url = f"sqlite:///{relative_path}"
+    connect_args = {"check_same_thread": False}
+else:
+    db_url = raw_url
+    connect_args = {}
+
+engine = create_engine(db_url, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-# Modelo de Usuario
-class Usuario(Base):
-    __tablename__ = "usuarios"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, nullable=False)
-    apellido = Column(String, nullable=False)
-    edad = Column(Integer, nullable=False)
-    fecha_nacimiento = Column(String, nullable=False)  # Formato YYYY-MM-DD
-    email = Column(String, unique=True, nullable=False)
-    rol = Column(String, nullable=False)  # Por ejemplo: 'admin', 'usuario', etc.
-    # En producción se debería almacenar la contraseña como hash
-    clave = Column(String, nullable=False)  
-
-# Crear tablas en la BD
-Base.metadata.create_all(bind=engine)
 
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\main.py
 # main.py - Punto de arranque de la aplicación.
 
-from fastapi import FastAPI, Request, HTTPException
+# main.py
+from fastapi import FastAPI, Request, HTTPException, Depends, Cookie
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
+from database import engine, SessionLocal
+from models import Base, Usuario
 from auth import router as auth_router
-from routers import tareas, perfil, admin  # Asegúrate de que admin se importe
-# resto de importaciones...
+from routers import admin, tareas, perfil, usuarios
+
+# Creamos tablas si no existen
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="TaskGenie")
 templates = Jinja2Templates(directory="templates")
 
-app.include_router(auth_router, tags=["Autenticación"])
+# Montamos routers
+app.include_router(auth_router)
+app.include_router(admin.router)
 app.include_router(tareas.router, prefix="/tareas", tags=["Tareas"])
 app.include_router(perfil.router, prefix="/perfil", tags=["Perfil"])
-app.include_router(admin.router, prefix="/admin", tags=["Administración"])  # Nuevo router admin
+app.include_router(usuarios.router, prefix="/u", tags=["Usuarios"])
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_current_user(
+    user_id: str | None = Cookie(None),
+    db: Session = Depends(get_db)
+) -> Usuario | None:
+    if user_id:
+        return db.get(Usuario, int(user_id))
+    return None
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
-@app.exception_handler(404)
-async def not_found_exception_handler(request: Request, exc: HTTPException):
-    accept = request.headers.get("accept", "")
-    if "text/html" in accept:
-        return templates.TemplateResponse(
-            "errores.html",
-            {"request": request, "mensaje": "La página que buscas no fue encontrada. Por favor, revisa la URL o regresa al inicio."},
-            status_code=404
-        )
-    return JSONResponse(status_code=404, content={"detail": "La página no fue encontrada."})
+async def dashboard(
+    request: Request,
+    user: Usuario | None = Depends(get_current_user)
+):
+    return templates.TemplateResponse(
+        "dashboard.html",
+        {"request": request, "user": user}
+    )
 
 @app.get("/dashboard_admin", response_class=HTMLResponse)
-async def dashboard_admin(request: Request):
-    return templates.TemplateResponse("dashboard_admin.html", {"request": request})
+async def dashboard_admin(
+    request: Request,
+    user: Usuario | None = Depends(get_current_user)
+):
+    if not user or user.rol.value != "administrador":
+        # Si no es admin, prohibimos el acceso
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    return templates.TemplateResponse(
+        "dashboard_admin.html",
+        {"request": request, "user": user}
+    )
 
+@app.exception_handler(404)
+async def not_found(request: Request, exc: HTTPException):
+    if "text/html" in request.headers.get("accept", ""):
+        return templates.TemplateResponse(
+            "errores.html",
+            {"request": request, "mensaje": "Página no encontrada."},
+            status_code=404
+        )
+    return JSONResponse(status_code=404, content={"detail": "Not found"})
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\models.py
 # models.py
-# Modelos de SQLAlchemy.
-
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Date, Enum, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
 import enum
+from sqlalchemy import (
+    Column, Integer, String, Date, Enum, Boolean, ForeignKey
+)
+from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
 class RolEnum(enum.Enum):
-    profesor = "profesor"
-    alumno = "alumno"
+    profesor      = "profesor"
+    alumno        = "alumno"
     administrador = "administrador"
 
 class Usuario(Base):
     __tablename__ = "usuarios"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, nullable=False)
-    apellido = Column(String, nullable=False)
-    email = Column(String, unique=True, nullable=False)
-    clave = Column(String, nullable=False)  # Se recomienda utilizar hash en producción
-    fecha_nacimiento = Column(Date)
-    rol = Column(Enum(RolEnum), nullable=False)
-    bloqueado = Column(Boolean, default=False)  # Nuevo campo: estado de bloqueo
 
-    # Relaciones con tareas:
-    tareas_creadas = relationship("Tarea", back_populates="creador", foreign_keys="Tarea.creador_id")
-    tareas_asignadas = relationship("Tarea", back_populates="asignado", foreign_keys="Tarea.asignado_a")
+    id               = Column(Integer,  primary_key=True, index=True)
+    nombre           = Column(String,   nullable=False)
+    apellido         = Column(String,   nullable=False)
+    edad             = Column(Integer,  nullable=False)
+    email            = Column(String,   unique=True, nullable=False)
+    clave            = Column(String,   nullable=False)
+    fecha_nacimiento = Column(Date,     nullable=False)
+    rol              = Column(Enum(RolEnum), nullable=False)
+    bloqueado        = Column(Boolean, default=False)
+
+    tareas_creadas   = relationship(
+        "Tarea", back_populates="creador",
+        foreign_keys="Tarea.creador_id"
+    )
+    tareas_asignadas = relationship(
+        "Tarea", back_populates="asignado",
+        foreign_keys="Tarea.asignado_a"
+    )
 
 class Tarea(Base):
     __tablename__ = "tareas"
-    id = Column(Integer, primary_key=True, index=True)
-    titulo = Column(String, nullable=False)
-    descripcion = Column(String)
-    importancia = Column(String)
+
+    id            = Column(Integer, primary_key=True, index=True)
+    titulo        = Column(String,  nullable=False)
+    descripcion   = Column(String)
+    importancia   = Column(String)
     fecha_entrega = Column(Date)
-    estado = Column(String, default="asignada")
-    solucion = Column(String)  # Opcional
+    estado        = Column(String, default="asignada")
+    solucion      = Column(String)
 
     creador_id = Column(Integer, ForeignKey("usuarios.id"))
     asignado_a = Column(Integer, ForeignKey("usuarios.id"))
 
-    creador = relationship("Usuario", back_populates="tareas_creadas", foreign_keys=[creador_id])
-    asignado = relationship("Usuario", back_populates="tareas_asignadas", foreign_keys=[asignado_a])
-
-----------------------------------------
-# C:\americo\API\TaskGenie\requirements.txt
-# Error al leer este archivo: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte
+    creador  = relationship("Usuario", back_populates="tareas_creadas",
+                             foreign_keys=[creador_id])
+    asignado = relationship("Usuario", back_populates="tareas_asignadas",
+                             foreign_keys=[asignado_a])
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\schemas.py
 #  schemas.py
 # Schemas con Pydantic.
+# schemas.py
 from pydantic import BaseModel, EmailStr
 from datetime import date
 from enum import Enum
 
 class RolEnum(str, Enum):
-    profesor = "profesor"
-    alumno = "alumno"
+    profesor      = "profesor"
+    alumno        = "alumno"
     administrador = "administrador"
 
 class UsuarioCreate(BaseModel):
     nombre: str
     apellido: str
+    edad: int
     email: EmailStr
     clave: str
     fecha_nacimiento: date
@@ -328,52 +318,50 @@ class UsuarioResponse(BaseModel):
     nombre: str
     apellido: str
     email: EmailStr
+    edad: int
     fecha_nacimiento: date
     rol: RolEnum
+    bloqueado: bool
 
     class Config:
-        orm_mode = True
+        from_attributes = True  # Pydantic V2
 
-# Esquema para actualizar rol.
 class UsuarioUpdateRol(BaseModel):
     rol: RolEnum
 
-# Esquema para actualizar estado de bloqueo.
 class UsuarioUpdateBloqueo(BaseModel):
     bloqueado: bool
-
-
 
 class MensajeResponse(BaseModel):
     mensaje: str
 
-
-----------------------------------------
-# C:\americo\API\TaskGenie\taskgenie.db
-# Error al leer este archivo: 'utf-8' codec can't decode byte 0x86 in position 98: invalid start byte
-
-----------------------------------------
-# C:\americo\API\TaskGenie\__init__.py
-
+class Tarea(BaseModel):
+    id: int
+    titulo: str
+    descripcion: str
+    importancia: str
+    fecha_entrega: date
+    estado: str
+    solucion: str   
+    creador_id: int
+    asignado_a: int 
+    
 ----------------------------------------
 # C:\americo\API\TaskGenie\routers\admin.py
 # # Endpoints para administración de usuarios.
 # # routers/admin.py
 # 
-from fastapi import APIRouter, Depends, HTTPException, status
+# routers/admin.py
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from database import SessionLocal, Usuario
-from schemas import (
-    UsuarioResponse,
-    UsuarioUpdateRol,
-    UsuarioUpdateBloqueo,
-    MensajeResponse
-)
 
-router = APIRouter()
+from database import SessionLocal
+from models import Usuario
+from schemas import UsuarioResponse, UsuarioUpdateRol, UsuarioUpdateBloqueo, MensajeResponse
 
-# Dependencia para obtener la sesión de la base de datos.
+router = APIRouter(prefix="/admin", tags=["Administración"])
+
 def get_db():
     db = SessionLocal()
     try:
@@ -381,127 +369,70 @@ def get_db():
     finally:
         db.close()
 
-# Endpoint 1: Listar todos los usuarios
-@router.get("/usuarios", response_model=List[UsuarioResponse])
+@router.get("/usuarios", response_model=List[UsuarioResponse], summary="Listar todos los usuarios")
 def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(Usuario).all()
-    return usuarios
+    """Obtiene una lista de todos los usuarios almacenados en la base de datos."""
+    return db.query(Usuario).all()
 
-# Endpoint 2: Obtener el detalle de un usuario específico
-@router.get("/usuarios/{user_id}", response_model=UsuarioResponse)
-def obtener_detalle_usuario(user_id: int, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    return usuario
-
-# Endpoint 3: Actualizar el rol de un usuario
-@router.put("/usuarios/{user_id}/rol", response_model=UsuarioResponse)
-def actualizar_rol(user_id: int, update: UsuarioUpdateRol, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    usuario.rol = update.rol
-    db.commit()
-    db.refresh(usuario)
-    return usuario
-
-# Endpoint 4: Actualizar el estado de bloqueo de un usuario
-@router.put("/usuarios/{user_id}/bloqueo", response_model=UsuarioResponse)
-def actualizar_bloqueo(user_id: int, update: UsuarioUpdateBloqueo, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    usuario.bloqueado = update.bloqueado
-    db.commit()
-    db.refresh(usuario)
-    return usuario
-
-# Endpoint 5 (Opcional): Eliminar un usuario
-@router.delete("/usuarios/{user_id}", response_model=MensajeResponse)
-def eliminar_usuario(user_id: int, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    db.delete(usuario)
-    db.commit()
-    return {"mensaje": "Usuario eliminado con éxito"}
-
-# (Opcional) Endpoint Extra: Buscar usuarios por filtro
-@router.get("/usuarios/search", response_model=List[UsuarioResponse])
+@router.get("/usuarios/search", response_model=List[UsuarioResponse], summary="Buscar usuarios por email y/o rol")
 def buscar_usuarios(
-    rol: Optional[str] = None,
-    email: Optional[str] = None,
+    rol: Optional[str] = Query(None, description="Filtrar por rol"),
+    email: Optional[str] = Query(None, description="Buscar por email"),
     db: Session = Depends(get_db)
 ):
+    """Busca usuarios filtrando por rol y/o email."""
     query = db.query(Usuario)
     if rol:
         query = query.filter(Usuario.rol == rol)
     if email:
         query = query.filter(Usuario.email.ilike(f"%{email}%"))
+    
     usuarios = query.all()
+    
+    if not usuarios:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron usuarios con los criterios dados")
+    
     return usuarios
 
-""" from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from database import SessionLocal, Usuario
-from schemas import UsuarioResponse, UsuarioUpdateRol, UsuarioUpdateBloqueo, MensajeResponse
-
-router = APIRouter()
-
-# Dependencia para obtener la sesión de la base de datos.
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@router.get("/usuarios", response_model=list[UsuarioResponse])
-def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(Usuario).all()
-    return usuarios
-
-@router.put("/usuarios/{user_id}/rol", response_model=UsuarioResponse)
-def actualizar_rol(user_id: int, update: UsuarioUpdateRol, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
+@router.get("/usuarios/{user_id}", response_model=UsuarioResponse, summary="Obtener detalle de un usuario por ID")
+def detalle_usuario(user_id: int, db: Session = Depends(get_db)):
+    """Obtiene detalles de un usuario por su ID."""
+    usuario = db.get(Usuario, user_id)
     if not usuario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
-    usuario.rol = update.rol
+    return usuario
+
+@router.put("/usuarios/{user_id}/rol", response_model=UsuarioResponse, summary="Actualizar rol de un usuario")
+def cambiar_rol(user_id: int, upd: UsuarioUpdateRol, db: Session = Depends(get_db)):
+    """Cambia el rol de un usuario con el ID proporcionado."""
+    usuario = db.get(Usuario, user_id)
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    usuario.rol = upd.rol
     db.commit()
     db.refresh(usuario)
     return usuario
 
-@router.put("/usuarios/{user_id}/bloqueo", response_model=UsuarioResponse)
-def actualizar_bloqueo(user_id: int, update: UsuarioUpdateBloqueo, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
+@router.put("/usuarios/{user_id}/bloqueo", response_model=UsuarioResponse, summary="Actualizar estado de bloqueo de un usuario")
+def cambiar_bloqueo(user_id: int, upd: UsuarioUpdateBloqueo, db: Session = Depends(get_db)):
+    """Actualiza el estado de bloqueo de un usuario con el ID proporcionado."""
+    usuario = db.get(Usuario, user_id)
     if not usuario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
-    usuario.bloqueado = update.bloqueado
+    usuario.bloqueado = upd.bloqueado
     db.commit()
     db.refresh(usuario)
     return usuario
 
-@router.delete("/usuarios/{user_id}", response_model=MensajeResponse)
+@router.delete("/usuarios/{user_id}", response_model=MensajeResponse, summary="Eliminar un usuario")
 def eliminar_usuario(user_id: int, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
+    """Elimina un usuario por su ID."""
+    usuario = db.get(Usuario, user_id)
     if not usuario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     db.delete(usuario)
     db.commit()
-    return {"mensaje": "Usuario eliminado con éxito"} """
+    return MensajeResponse(mensaje="Usuario eliminado con éxito")
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\routers\perfil.py
@@ -532,18 +463,17 @@ def listar_tareas():
 ----------------------------------------
 # C:\americo\API\TaskGenie\routers\usuarios.py
 # C:\americo\API\TaskGenie\routers\usuarios.py
-
-# C:\americo\API\TaskGenie\routers\usuarios.py
-
+# routers/usuarios.py
 from fastapi import APIRouter, Depends, Form, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from database import SessionLocal, Usuario
 from pydantic import BaseModel
 
-router = APIRouter()
+from database import SessionLocal
+from models import Usuario
 
-# Dependencia para obtener la sesión de la base de datos.
+router = APIRouter(tags=["Usuarios"])
+
 def get_db():
     db = SessionLocal()
     try:
@@ -551,161 +481,105 @@ def get_db():
     finally:
         db.close()
 
-# -------------------------------------------------------------------
-# Esquema para registrar un usuario (para solicitudes JSON)
-class UsuarioCreate(BaseModel):
+class UsuarioCreateForm(BaseModel):
     nombre: str
     apellido: str
     edad: int
-    fecha_nacimiento: str  # Formato YYYY-MM-DD
-    email: str
-    clave: str  # Se espera plaintext (solo para práctica)
-    
-# Endpoint para registrar un usuario usando JSON.
-@router.post("/registro/")
-def registrar_usuario_json(usuario: UsuarioCreate, db: Session = Depends(get_db)):
-    # Verificar si ya existe un usuario con el mismo email.
-    existing_user = db.query(Usuario).filter(Usuario.email == usuario.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un usuario con ese email."
-        )
-    
-    nuevo_usuario = Usuario(
-        nombre=usuario.nombre,
-        apellido=usuario.apellido,
-        edad=usuario.edad,
-        fecha_nacimiento=usuario.fecha_nacimiento,
-        email=usuario.email,
-        clave=usuario.clave
-    )
-    db.add(nuevo_usuario)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un usuario con ese email."
-        )
-    db.refresh(nuevo_usuario)
-    return {"mensaje": "Usuario registrado correctamente (JSON)", "id": nuevo_usuario.id}
-
-# -------------------------------------------------------------------
-# Endpoint para registrar un usuario usando datos de formulario.
-@router.post("/registro_form")
-def registrar_usuario_form(
-    nombre: str = Form(...),
-    apellido: str = Form(...),
-    edad: int = Form(...),
-    fecha_nacimiento: str = Form(...),  # Formato YYYY-MM-DD
-    email: str = Form(...),
-    clave: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    # Verificar si ya existe un usuario con ese email.
-    existing_user = db.query(Usuario).filter(Usuario.email == email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un usuario con ese email."
-        )
-    
-    nuevo_usuario = Usuario(
-        nombre=nombre,
-        apellido=apellido,
-        edad=edad,
-        fecha_nacimiento=fecha_nacimiento,
-        email=email,
-        clave=clave
-    )
-    db.add(nuevo_usuario)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Ya existe un usuario con ese email."
-        )
-    db.refresh(nuevo_usuario)
-    return {"mensaje": "Usuario registrado correctamente (Form)", "id": nuevo_usuario.id}
-
-# -------------------------------------------------------------------
-# Endpoint para recuperar la contraseña por email.
-@router.get("/recuperar/{email}")
-def recuperar_clave(email: str, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
-    if usuario:
-        return {"mensaje": f"La contraseña para {email} es: {usuario.clave}"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado."
-        )
-
-# -------------------------------------------------------------------
-# Esquema para login (para solicitudes JSON)
-class UsuarioLogin(BaseModel):
+    fecha_nacimiento: str
     email: str
     clave: str
 
-# Endpoint para login usando JSON.
-@router.post("/login_json")
-def login_json(usuario: UsuarioLogin, db: Session = Depends(get_db)):
-    db_usuario = db.query(Usuario).filter(Usuario.email == usuario.email).first()
-    if not db_usuario or db_usuario.clave != usuario.clave:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas."
-        )
-    return {"mensaje": "Login exitoso (JSON)", "usuario_id": db_usuario.id}
-
-# -------------------------------------------------------------------
-# Endpoint para login usando datos de formulario.
-@router.post("/login_form")
-def login_form(
-    email: str = Form(...),
-    clave: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    db_usuario = db.query(Usuario).filter(Usuario.email == email).first()
-    if not db_usuario or db_usuario.clave != clave:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Credenciales inválidas."
-        )
-    return {"mensaje": "Login exitoso (Form)", "usuario_id": db_usuario.id}
+@router.post("/registro-json")
+def registrar_json(u: UsuarioCreateForm, db: Session = Depends(get_db)):
+    existing = db.query(Usuario).filter(Usuario.email == u.email).first()
+    if existing:
+        raise HTTPException(409, "Email ya registrado")
+    nuevo = Usuario(
+        nombre=u.nombre,
+        apellido=u.apellido,
+        email=u.email,
+        clave=u.clave,
+        fecha_nacimiento=u.fecha_nacimiento,  # se parsea en auth_service
+        rol="alumno"  # o lo que definas
+    )
+    db.add(nuevo)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Email ya registrado")
+    db.refresh(nuevo)
+    return {"mensaje": "Usuario creado", "id": nuevo.id}
 
 ----------------------------------------
-# C:\americo\API\TaskGenie\routers\__init__.py
+# C:\americo\API\TaskGenie\services\auth_service.py
+# services/auth_service.py
+from sqlalchemy.exc import IntegrityError
+from datetime import datetime
+from models import Usuario
+
+def registrar_usuario(db, *, nombre, apellido, edad, email, fecha_nacimiento, rol, clave):
+    # Convertir fecha de string a date
+    if isinstance(fecha_nacimiento, str):
+        try:
+            fecha_nacimiento = datetime.strptime(fecha_nacimiento, "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError("Fecha debe tener formato YYYY-MM-DD.")
+
+    usuario = Usuario(
+        nombre=nombre,
+        apellido=apellido,
+        edad=edad, 
+        email=email,
+        clave=clave,  # → en producción usa hashing
+        fecha_nacimiento=fecha_nacimiento,
+        rol=rol
+    )
+    db.add(usuario)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise ValueError("Ya existe un usuario con ese email.")
+    db.refresh(usuario)
+    return usuario
+
+def autenticar_usuario(db, email: str, clave: str):
+    usuario = db.query(Usuario).filter(Usuario.email == email).first()
+    if usuario and usuario.clave == clave:
+        return usuario
+    return None
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\templates\dashboard_admin.html
-<!-- Dashboard para administradores -->
+<!-- templates/dashboard_admin.html -->
+<!-- templates/dashboard_admin.html -->
 <!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <title>Dashboard Administrador - TaskGenie</title>
     <style>
-      /* Estilos simples para organizar la interfaz */
       body {
         font-family: Arial, sans-serif;
         margin: 0;
         padding: 20px;
       }
+      header {
+        margin-bottom: 20px;
+      }
       nav {
         background-color: #333;
         color: #fff;
         padding: 10px;
+        margin-bottom: 20px;
       }
       nav ul {
         list-style: none;
-        margin: 0;
-        padding: 0;
         display: flex;
+        align-items: center;
+        padding: 0;
+        margin: 0;
       }
       nav ul li {
         margin-right: 20px;
@@ -715,6 +589,12 @@ def login_form(
         text-decoration: none;
         cursor: pointer;
       }
+      .salir {
+        margin-left: auto;
+        background: #c00;
+        padding: 5px 10px;
+        border-radius: 4px;
+      }
       section {
         margin-top: 20px;
         display: none;
@@ -723,23 +603,28 @@ def login_form(
         width: 100%;
         border-collapse: collapse;
       }
-      table,
       th,
       td {
         border: 1px solid #ccc;
-      }
-      th,
-      td {
         padding: 8px;
         text-align: left;
       }
-      .visible {
-        display: block;
+      button {
+        padding: 4px 8px;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <!-- Menú de navegación -->
+    <header>
+      <h1>Panel de Administración</h1>
+      <p>
+        Usuario: {{ user.nombre }} {{ user.apellido }} • Rol: {{ user.rol.value
+        }}
+      </p>
+      <hr />
+    </header>
+
     <nav>
       <ul>
         <li><a onclick="showSection('listado')">Listado de Usuarios</a></li>
@@ -747,10 +632,11 @@ def login_form(
         <li><a onclick="showSection('rol')">Actualizar Rol</a></li>
         <li><a onclick="showSection('bloqueo')">Actualizar Bloqueo</a></li>
         <li><a onclick="showSection('buscar')">Buscar Usuarios</a></li>
+        <li class="salir"><a href="/login">Cerrar sesión</a></li>
       </ul>
     </nav>
 
-    <!-- Sección 1: Listar todos los usuarios -->
+    <!-- 1: Listado de Usuarios -->
     <section id="listado">
       <h2>Listado de Usuarios</h2>
       <table id="tabla-usuarios">
@@ -758,218 +644,205 @@ def login_form(
           <tr>
             <th>ID</th>
             <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Edad</th>
             <th>Email</th>
             <th>Rol</th>
             <th>Bloqueado</th>
-            <th>Acciones</th>
+            <th>Ver</th>
+            <th>Eliminar</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
-      <script>
-        // Función para cargar usuarios del endpoint /admin/usuarios
-        function cargarUsuarios() {
-          fetch("/admin/usuarios")
-            .then((response) => response.json())
-            .then((usuarios) => {
-              const tbody = document.querySelector("#tabla-usuarios tbody");
-              tbody.innerHTML = "";
-              usuarios.forEach((usuario) => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                  <td>${usuario.id}</td>
-                  <td>${usuario.nombre} ${usuario.apellido}</td>
-                  <td>${usuario.email}</td>
-                  <td>${usuario.rol}</td>
-                  <td>${usuario.bloqueado ? "Sí" : "No"}</td>
-                  <td>
-                    <button onclick="verDetalle(${
-                      usuario.id
-                    })">Ver Detalle</button>
-                    <button onclick="eliminarUsuario(${
-                      usuario.id
-                    })">Eliminar</button>
-                  </td>
-                `;
-                tbody.appendChild(tr);
-              });
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 2: Detalle de Usuario -->
+    <!-- 2: Detalle de Usuario -->
     <section id="detalle">
       <h2>Detalle de Usuario</h2>
-      <form id="formDetalle" onsubmit="event.preventDefault(); verDetalle();">
-        <label for="detalleId">ID del Usuario:</label>
-        <input type="number" id="detalleId" required />
-        <button type="submit">Ver Detalle</button>
+      <form onsubmit="event.preventDefault(); verDetalleEmail();">
+        <label for="detalleEmail">Email:</label>
+        <input type="email" id="detalleEmail" required />
+        <button type="submit">Buscar</button>
       </form>
       <div id="detalle-usuario"></div>
-      <script>
-        function verDetalle(id) {
-          // Permite usar el id del formulario o el pasado como argumento.
-          let userId = id || document.getElementById("detalleId").value;
-          fetch(`/admin/usuarios/${userId}`)
-            .then((response) => response.json())
-            .then((usuario) => {
-              document.getElementById("detalle-usuario").innerHTML = `
-                <p><strong>ID:</strong> ${usuario.id}</p>
-                <p><strong>Nombre:</strong> ${usuario.nombre} ${
-                usuario.apellido
-              }</p>
-                <p><strong>Email:</strong> ${usuario.email}</p>
-                <p><strong>Rol:</strong> ${usuario.rol}</p>
-                <p><strong>Bloqueado:</strong> ${
-                  usuario.bloqueado ? "Sí" : "No"
-                }</p>
-              `;
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 3: Actualizar Rol de Usuario -->
+    <!-- 3: Actualizar Rol -->
     <section id="rol">
       <h2>Actualizar Rol de Usuario</h2>
-      <form id="formRol" onsubmit="event.preventDefault(); actualizarRol();">
-        <label for="rolUserId">ID del Usuario:</label>
-        <input type="number" id="rolUserId" required />
-        <br />
+      <form onsubmit="event.preventDefault(); actualizarRolEmail();">
+        <label for="rolEmail">Email:</label>
+        <input type="email" id="rolEmail" required /><br />
         <label for="nuevoRol">Nuevo Rol:</label>
         <select id="nuevoRol" required>
           <option value="profesor">Profesor</option>
           <option value="alumno">Alumno</option>
           <option value="administrador">Administrador</option>
         </select>
-        <br />
-        <button type="submit">Actualizar Rol</button>
+        <button type="submit">Actualizar</button>
       </form>
-      <script>
-        function actualizarRol() {
-          const userId = document.getElementById("rolUserId").value;
-          const nuevoRol = document.getElementById("nuevoRol").value;
-          fetch(`/admin/usuarios/${userId}/rol`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rol: nuevoRol }),
-          })
-            .then((res) => res.json())
-            .then((data) => {
-              alert("Rol actualizado: " + data.rol);
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 4: Actualizar Estado de Bloqueo -->
+    <!-- 4: Actualizar Bloqueo -->
     <section id="bloqueo">
       <h2>Actualizar Estado de Bloqueo</h2>
-      <form
-        id="formBloqueo"
-        onsubmit="event.preventDefault(); actualizarBloqueo();"
-      >
-        <label for="bloqUserId">ID del Usuario:</label>
-        <input type="number" id="bloqUserId" required />
-        <br />
+      <form onsubmit="event.preventDefault(); actualizarBloqueoEmail();">
+        <label for="bloqEmail">Email:</label>
+        <input type="email" id="bloqEmail" required /><br />
         <label for="estadoBloqueo">Bloquear Usuario:</label>
         <select id="estadoBloqueo" required>
           <option value="true">Sí</option>
           <option value="false" selected>No</option>
         </select>
-        <br />
-        <button type="submit">Actualizar Bloqueo</button>
+        <button type="submit">Actualizar</button>
       </form>
-      <script>
-        function actualizarBloqueo() {
-          const userId = document.getElementById("bloqUserId").value;
-          const bloqueado =
-            document.getElementById("estadoBloqueo").value === "true";
-          fetch(`/admin/usuarios/${userId}/bloqueo`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bloqueado }),
-          })
-            .then((res) => res.json())
-            .then((data) => {
-              alert(
-                "Estado de bloqueo actualizado: " +
-                  (data.bloqueado ? "Bloqueado" : "No bloqueado")
-              );
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 5: Buscar Usuarios por Filtro -->
+    <!-- 5: Buscar Usuarios por Email -->
     <section id="buscar">
       <h2>Buscar Usuarios</h2>
-      <form
-        id="formBusqueda"
-        onsubmit="event.preventDefault(); buscarUsuarios();"
-      >
-        <label for="filtroRol">Rol:</label>
-        <select id="filtroRol">
-          <option value="">Todos</option>
-          <option value="profesor">Profesor</option>
-          <option value="alumno">Alumno</option>
-          <option value="administrador">Administrador</option>
-        </select>
+      <form onsubmit="event.preventDefault(); buscarUsuarios();">
         <label for="filtroEmail">Email:</label>
         <input type="text" id="filtroEmail" placeholder="Buscar por email" />
         <button type="submit">Buscar</button>
       </form>
       <div id="resultadosBusqueda"></div>
-      <script>
-        function buscarUsuarios() {
-          const rol = document.getElementById("filtroRol").value;
-          const email = document.getElementById("filtroEmail").value;
-          let url = "/admin/usuarios/search?";
-          if (rol) url += "rol=" + encodeURIComponent(rol) + "&";
-          if (email) url += "email=" + encodeURIComponent(email);
-          fetch(url)
-            .then((response) => response.json())
-            .then((usuarios) => {
-              let html = "<ul>";
-              usuarios.forEach((usuario) => {
-                html += `<li>ID: ${usuario.id} - ${usuario.nombre} ${usuario.apellido} (${usuario.rol})</li>`;
-              });
-              html += "</ul>";
-              document.getElementById("resultadosBusqueda").innerHTML = html;
-            });
-        }
-      </script>
     </section>
 
-    <!-- Script de control de navegación -->
     <script>
-      // Función para ocultar todas las secciones y mostrar la solicitada
+      // Mostrar sección y cargar listado
       function showSection(id) {
-        const sections = document.querySelectorAll("section");
-        sections.forEach((section) => (section.style.display = "none"));
+        document
+          .querySelectorAll("section")
+          .forEach((s) => (s.style.display = "none"));
         document.getElementById(id).style.display = "block";
-
-        // Acciones adicionales: por ejemplo, si se carga el listado, recargar usuarios.
-        if (id === "listado") {
-          cargarUsuarios();
-        }
+        if (id === "listado") cargarUsuarios();
       }
-      // Mostrar por defecto la sección de listado al cargar
-      window.onload = function () {
-        showSection("listado");
-      };
+      window.onload = () => showSection("listado");
 
-      // Función para eliminar un usuario (utilizada en listado)
-      function eliminarUsuario(userId) {
-        if (confirm("¿Estás seguro de eliminar este usuario?")) {
-          fetch(`/admin/usuarios/${userId}`, { method: "DELETE" })
-            .then((response) => response.json())
-            .then((data) => {
-              alert(data.mensaje);
-              cargarUsuarios();
+      // 1: Listado de usuarios
+      function cargarUsuarios() {
+        fetch("/admin/usuarios")
+          .then((r) => r.json())
+          .then((usuarios) => {
+            const tbody = document.querySelector("#tabla-usuarios tbody");
+            tbody.innerHTML = "";
+            usuarios.forEach((u) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${u.id}</td>
+                <td>${u.nombre}</td>
+                <td>${u.apellido}</td>
+                <td>${u.edad}</td>
+                <td>${u.email}</td>
+                <td>${u.rol}</td>
+                <td>${u.bloqueado ? "Sí" : "No"}</td>
+                <td>
+                  <button onclick="showSection('detalle'); verDetalleEmail('${
+                    u.email
+                  }')">
+                    Ver
+                  </button>
+                </td>
+                <td>
+                  <button onclick="eliminarUsuario(${u.id})">
+                    Eliminar
+                  </button>
+                </td>
+              `;
+              tbody.appendChild(tr);
             });
-        }
+          });
+      }
+
+      // 2: Detalle por email
+      function verDetalleEmail(email) {
+        const e = email || document.getElementById("detalleEmail").value;
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(e)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            const u = list[0];
+            if (!u) return alert("No se encontró usuario.");
+            document.getElementById("detalle-usuario").innerHTML = `
+              <p><strong>ID:</strong> ${u.id}</p>
+              <p><strong>Nombre:</strong> ${u.nombre}</p>
+              <p><strong>Apellido:</strong> ${u.apellido}</p>
+              <p><strong>Edad:</strong> ${u.edad}</p>
+              <p><strong>Email:</strong> ${u.email}</p>
+              <p><strong>Rol:</strong> ${u.rol}</p>
+              <p><strong>Bloqueado:</strong> ${u.bloqueado ? "Sí" : "No"}</p>
+            `;
+          });
+      }
+
+      // 3: Actualizar rol por email
+      function actualizarRolEmail() {
+        const email = document.getElementById("rolEmail").value;
+        const rol = document.getElementById("nuevoRol").value;
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(email)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            if (!list[0]) return alert("Usuario no encontrado.");
+            const id = list[0].id;
+            return fetch(`/admin/usuarios/${id}/rol`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ rol }),
+            });
+          })
+          .then((res) => res.json())
+          .then((u) => alert("Rol actualizado a " + u.rol))
+          .catch((err) => console.error(err));
+      }
+
+      // 4: Actualizar bloqueo por email
+      function actualizarBloqueoEmail() {
+        const email = document.getElementById("bloqEmail").value;
+        const bloq = document.getElementById("estadoBloqueo").value === "true";
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(email)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            if (!list[0]) return alert("Usuario no encontrado.");
+            const id = list[0].id;
+            return fetch(`/admin/usuarios/${id}/bloqueo`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ bloqueado: bloq }),
+            });
+          })
+          .then((res) => res.json())
+          .then((u) =>
+            alert("Bloqueo actualizado: " + (u.bloqueado ? "Sí" : "No"))
+          )
+          .catch((err) => console.error(err));
+      }
+
+      // 5: Buscar usuarios por email
+      function buscarUsuarios() {
+        const email = document.getElementById("filtroEmail").value;
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(email)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            if (!list.length) return alert("No se encontraron usuarios.");
+            let html = "<ul>";
+            list.forEach((u) => {
+              html += `<li>${u.nombre} ${u.apellido} (${u.email})</li>`;
+            });
+            html += "</ul>";
+            document.getElementById("resultadosBusqueda").innerHTML = html;
+          });
+      }
+
+      // Eliminar usuario
+      function eliminarUsuario(id) {
+        if (!confirm("¿Eliminar este usuario?")) return;
+        fetch(`/admin/usuarios/${id}`, { method: "DELETE" })
+          .then((r) => r.json())
+          .then((d) => {
+            alert(d.mensaje);
+            cargarUsuarios();
+          });
       }
     </script>
   </body>
@@ -1001,6 +874,7 @@ def login_form(
 
 ----------------------------------------
 # C:\americo\API\TaskGenie\templates\dashboard.html
+<!-- templates/dashboard.html -->
 <!DOCTYPE html>
 <html lang="es">
   <head>
@@ -1008,7 +882,12 @@ def login_form(
     <title>Dashboard</title>
   </head>
   <body>
+    {% if user %}
+    <h1>¡Bienvenido, {{ user.nombre }}!</h1>
+    <p>Rol: {{ user.rol.value }}</p>
+    {% else %}
     <h1>¡Bienvenido al Dashboard!</h1>
+    {% endif %}
     <p>Aquí se muestran las funcionalidades para el usuario autenticado.</p>
     <a href="/">Volver al inicio</a>
   </body>
@@ -1099,39 +978,4 @@ def login_form(
     <p><a href="/">Volver al inicio</a></p>
   </body>
 </html>
-
-----------------------------------------
-# C:\americo\API\TaskGenie\services\auth_service.py
-# auth_service.py
-# este archivo contiene la lógica de negocio relacionada con la autenticación y el registro de usuarios.
-from sqlalchemy.exc import IntegrityError
-from database import Usuario
-
-def registrar_usuario(db, nombre, apellido, edad, fecha_nacimiento, email, rol, clave ):
-    # Aquí se podría aplicar hash a la contraseña (por ejemplo, usando bcrypt)
-    nuevo_usuario = Usuario(
-        nombre=nombre,
-        apellido=apellido,
-        edad=edad,
-        fecha_nacimiento=fecha_nacimiento,
-        email=email,
-        rol=rol,
-        clave=clave  # Reemplazar con hash_password(clave) en producción
-        
-    )
-    db.add(nuevo_usuario)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise ValueError("Ya existe un usuario con ese email.")
-    db.refresh(nuevo_usuario)
-    return nuevo_usuario
-
-def autenticar_usuario(db, email, clave):
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
-    if usuario and usuario.clave == clave:  # En producción comparar contra el hash
-        return usuario
-    return None
-
 

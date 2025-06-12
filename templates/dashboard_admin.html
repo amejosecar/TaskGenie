@@ -1,26 +1,31 @@
-<!-- Dashboard para administradores -->
+<!-- templates/dashboard_admin.html -->
+<!-- templates/dashboard_admin.html -->
 <!DOCTYPE html>
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
     <title>Dashboard Administrador - TaskGenie</title>
     <style>
-      /* Estilos simples para organizar la interfaz */
       body {
         font-family: Arial, sans-serif;
         margin: 0;
         padding: 20px;
       }
+      header {
+        margin-bottom: 20px;
+      }
       nav {
         background-color: #333;
         color: #fff;
         padding: 10px;
+        margin-bottom: 20px;
       }
       nav ul {
         list-style: none;
-        margin: 0;
-        padding: 0;
         display: flex;
+        align-items: center;
+        padding: 0;
+        margin: 0;
       }
       nav ul li {
         margin-right: 20px;
@@ -30,6 +35,12 @@
         text-decoration: none;
         cursor: pointer;
       }
+      .salir {
+        margin-left: auto;
+        background: #c00;
+        padding: 5px 10px;
+        border-radius: 4px;
+      }
       section {
         margin-top: 20px;
         display: none;
@@ -38,23 +49,28 @@
         width: 100%;
         border-collapse: collapse;
       }
-      table,
       th,
       td {
         border: 1px solid #ccc;
-      }
-      th,
-      td {
         padding: 8px;
         text-align: left;
       }
-      .visible {
-        display: block;
+      button {
+        padding: 4px 8px;
+        cursor: pointer;
       }
     </style>
   </head>
   <body>
-    <!-- Menú de navegación -->
+    <header>
+      <h1>Panel de Administración</h1>
+      <p>
+        Usuario: {{ user.nombre }} {{ user.apellido }} • Rol: {{ user.rol.value
+        }}
+      </p>
+      <hr />
+    </header>
+
     <nav>
       <ul>
         <li><a onclick="showSection('listado')">Listado de Usuarios</a></li>
@@ -62,10 +78,11 @@
         <li><a onclick="showSection('rol')">Actualizar Rol</a></li>
         <li><a onclick="showSection('bloqueo')">Actualizar Bloqueo</a></li>
         <li><a onclick="showSection('buscar')">Buscar Usuarios</a></li>
+        <li class="salir"><a href="/login">Cerrar sesión</a></li>
       </ul>
     </nav>
 
-    <!-- Sección 1: Listar todos los usuarios -->
+    <!-- 1: Listado de Usuarios -->
     <section id="listado">
       <h2>Listado de Usuarios</h2>
       <table id="tabla-usuarios">
@@ -73,218 +90,205 @@
           <tr>
             <th>ID</th>
             <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Edad</th>
             <th>Email</th>
             <th>Rol</th>
             <th>Bloqueado</th>
-            <th>Acciones</th>
+            <th>Ver</th>
+            <th>Eliminar</th>
           </tr>
         </thead>
         <tbody></tbody>
       </table>
-      <script>
-        // Función para cargar usuarios del endpoint /admin/usuarios
-        function cargarUsuarios() {
-          fetch("/admin/usuarios")
-            .then((response) => response.json())
-            .then((usuarios) => {
-              const tbody = document.querySelector("#tabla-usuarios tbody");
-              tbody.innerHTML = "";
-              usuarios.forEach((usuario) => {
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                  <td>${usuario.id}</td>
-                  <td>${usuario.nombre} ${usuario.apellido}</td>
-                  <td>${usuario.email}</td>
-                  <td>${usuario.rol}</td>
-                  <td>${usuario.bloqueado ? "Sí" : "No"}</td>
-                  <td>
-                    <button onclick="verDetalle(${
-                      usuario.id
-                    })">Ver Detalle</button>
-                    <button onclick="eliminarUsuario(${
-                      usuario.id
-                    })">Eliminar</button>
-                  </td>
-                `;
-                tbody.appendChild(tr);
-              });
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 2: Detalle de Usuario -->
+    <!-- 2: Detalle de Usuario -->
     <section id="detalle">
       <h2>Detalle de Usuario</h2>
-      <form id="formDetalle" onsubmit="event.preventDefault(); verDetalle();">
-        <label for="detalleId">ID del Usuario:</label>
-        <input type="number" id="detalleId" required />
-        <button type="submit">Ver Detalle</button>
+      <form onsubmit="event.preventDefault(); verDetalleEmail();">
+        <label for="detalleEmail">Email:</label>
+        <input type="email" id="detalleEmail" required />
+        <button type="submit">Buscar</button>
       </form>
       <div id="detalle-usuario"></div>
-      <script>
-        function verDetalle(id) {
-          // Permite usar el id del formulario o el pasado como argumento.
-          let userId = id || document.getElementById("detalleId").value;
-          fetch(`/admin/usuarios/${userId}`)
-            .then((response) => response.json())
-            .then((usuario) => {
-              document.getElementById("detalle-usuario").innerHTML = `
-                <p><strong>ID:</strong> ${usuario.id}</p>
-                <p><strong>Nombre:</strong> ${usuario.nombre} ${
-                usuario.apellido
-              }</p>
-                <p><strong>Email:</strong> ${usuario.email}</p>
-                <p><strong>Rol:</strong> ${usuario.rol}</p>
-                <p><strong>Bloqueado:</strong> ${
-                  usuario.bloqueado ? "Sí" : "No"
-                }</p>
-              `;
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 3: Actualizar Rol de Usuario -->
+    <!-- 3: Actualizar Rol -->
     <section id="rol">
       <h2>Actualizar Rol de Usuario</h2>
-      <form id="formRol" onsubmit="event.preventDefault(); actualizarRol();">
-        <label for="rolUserId">ID del Usuario:</label>
-        <input type="number" id="rolUserId" required />
-        <br />
+      <form onsubmit="event.preventDefault(); actualizarRolEmail();">
+        <label for="rolEmail">Email:</label>
+        <input type="email" id="rolEmail" required /><br />
         <label for="nuevoRol">Nuevo Rol:</label>
         <select id="nuevoRol" required>
           <option value="profesor">Profesor</option>
           <option value="alumno">Alumno</option>
           <option value="administrador">Administrador</option>
         </select>
-        <br />
-        <button type="submit">Actualizar Rol</button>
+        <button type="submit">Actualizar</button>
       </form>
-      <script>
-        function actualizarRol() {
-          const userId = document.getElementById("rolUserId").value;
-          const nuevoRol = document.getElementById("nuevoRol").value;
-          fetch(`/admin/usuarios/${userId}/rol`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rol: nuevoRol }),
-          })
-            .then((res) => res.json())
-            .then((data) => {
-              alert("Rol actualizado: " + data.rol);
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 4: Actualizar Estado de Bloqueo -->
+    <!-- 4: Actualizar Bloqueo -->
     <section id="bloqueo">
       <h2>Actualizar Estado de Bloqueo</h2>
-      <form
-        id="formBloqueo"
-        onsubmit="event.preventDefault(); actualizarBloqueo();"
-      >
-        <label for="bloqUserId">ID del Usuario:</label>
-        <input type="number" id="bloqUserId" required />
-        <br />
+      <form onsubmit="event.preventDefault(); actualizarBloqueoEmail();">
+        <label for="bloqEmail">Email:</label>
+        <input type="email" id="bloqEmail" required /><br />
         <label for="estadoBloqueo">Bloquear Usuario:</label>
         <select id="estadoBloqueo" required>
           <option value="true">Sí</option>
           <option value="false" selected>No</option>
         </select>
-        <br />
-        <button type="submit">Actualizar Bloqueo</button>
+        <button type="submit">Actualizar</button>
       </form>
-      <script>
-        function actualizarBloqueo() {
-          const userId = document.getElementById("bloqUserId").value;
-          const bloqueado =
-            document.getElementById("estadoBloqueo").value === "true";
-          fetch(`/admin/usuarios/${userId}/bloqueo`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ bloqueado }),
-          })
-            .then((res) => res.json())
-            .then((data) => {
-              alert(
-                "Estado de bloqueo actualizado: " +
-                  (data.bloqueado ? "Bloqueado" : "No bloqueado")
-              );
-            });
-        }
-      </script>
     </section>
 
-    <!-- Sección 5: Buscar Usuarios por Filtro -->
+    <!-- 5: Buscar Usuarios por Email -->
     <section id="buscar">
       <h2>Buscar Usuarios</h2>
-      <form
-        id="formBusqueda"
-        onsubmit="event.preventDefault(); buscarUsuarios();"
-      >
-        <label for="filtroRol">Rol:</label>
-        <select id="filtroRol">
-          <option value="">Todos</option>
-          <option value="profesor">Profesor</option>
-          <option value="alumno">Alumno</option>
-          <option value="administrador">Administrador</option>
-        </select>
+      <form onsubmit="event.preventDefault(); buscarUsuarios();">
         <label for="filtroEmail">Email:</label>
         <input type="text" id="filtroEmail" placeholder="Buscar por email" />
         <button type="submit">Buscar</button>
       </form>
       <div id="resultadosBusqueda"></div>
-      <script>
-        function buscarUsuarios() {
-          const rol = document.getElementById("filtroRol").value;
-          const email = document.getElementById("filtroEmail").value;
-          let url = "/admin/usuarios/search?";
-          if (rol) url += "rol=" + encodeURIComponent(rol) + "&";
-          if (email) url += "email=" + encodeURIComponent(email);
-          fetch(url)
-            .then((response) => response.json())
-            .then((usuarios) => {
-              let html = "<ul>";
-              usuarios.forEach((usuario) => {
-                html += `<li>ID: ${usuario.id} - ${usuario.nombre} ${usuario.apellido} (${usuario.rol})</li>`;
-              });
-              html += "</ul>";
-              document.getElementById("resultadosBusqueda").innerHTML = html;
-            });
-        }
-      </script>
     </section>
 
-    <!-- Script de control de navegación -->
     <script>
-      // Función para ocultar todas las secciones y mostrar la solicitada
+      // Mostrar sección y cargar listado
       function showSection(id) {
-        const sections = document.querySelectorAll("section");
-        sections.forEach((section) => (section.style.display = "none"));
+        document
+          .querySelectorAll("section")
+          .forEach((s) => (s.style.display = "none"));
         document.getElementById(id).style.display = "block";
-
-        // Acciones adicionales: por ejemplo, si se carga el listado, recargar usuarios.
-        if (id === "listado") {
-          cargarUsuarios();
-        }
+        if (id === "listado") cargarUsuarios();
       }
-      // Mostrar por defecto la sección de listado al cargar
-      window.onload = function () {
-        showSection("listado");
-      };
+      window.onload = () => showSection("listado");
 
-      // Función para eliminar un usuario (utilizada en listado)
-      function eliminarUsuario(userId) {
-        if (confirm("¿Estás seguro de eliminar este usuario?")) {
-          fetch(`/admin/usuarios/${userId}`, { method: "DELETE" })
-            .then((response) => response.json())
-            .then((data) => {
-              alert(data.mensaje);
-              cargarUsuarios();
+      // 1: Listado de usuarios
+      function cargarUsuarios() {
+        fetch("/admin/usuarios")
+          .then((r) => r.json())
+          .then((usuarios) => {
+            const tbody = document.querySelector("#tabla-usuarios tbody");
+            tbody.innerHTML = "";
+            usuarios.forEach((u) => {
+              const tr = document.createElement("tr");
+              tr.innerHTML = `
+                <td>${u.id}</td>
+                <td>${u.nombre}</td>
+                <td>${u.apellido}</td>
+                <td>${u.edad}</td>
+                <td>${u.email}</td>
+                <td>${u.rol}</td>
+                <td>${u.bloqueado ? "Sí" : "No"}</td>
+                <td>
+                  <button onclick="showSection('detalle'); verDetalleEmail('${
+                    u.email
+                  }')">
+                    Ver
+                  </button>
+                </td>
+                <td>
+                  <button onclick="eliminarUsuario(${u.id})">
+                    Eliminar
+                  </button>
+                </td>
+              `;
+              tbody.appendChild(tr);
             });
-        }
+          });
+      }
+
+      // 2: Detalle por email
+      function verDetalleEmail(email) {
+        const e = email || document.getElementById("detalleEmail").value;
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(e)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            const u = list[0];
+            if (!u) return alert("No se encontró usuario.");
+            document.getElementById("detalle-usuario").innerHTML = `
+              <p><strong>ID:</strong> ${u.id}</p>
+              <p><strong>Nombre:</strong> ${u.nombre}</p>
+              <p><strong>Apellido:</strong> ${u.apellido}</p>
+              <p><strong>Edad:</strong> ${u.edad}</p>
+              <p><strong>Email:</strong> ${u.email}</p>
+              <p><strong>Rol:</strong> ${u.rol}</p>
+              <p><strong>Bloqueado:</strong> ${u.bloqueado ? "Sí" : "No"}</p>
+            `;
+          });
+      }
+
+      // 3: Actualizar rol por email
+      function actualizarRolEmail() {
+        const email = document.getElementById("rolEmail").value;
+        const rol = document.getElementById("nuevoRol").value;
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(email)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            if (!list[0]) return alert("Usuario no encontrado.");
+            const id = list[0].id;
+            return fetch(`/admin/usuarios/${id}/rol`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ rol }),
+            });
+          })
+          .then((res) => res.json())
+          .then((u) => alert("Rol actualizado a " + u.rol))
+          .catch((err) => console.error(err));
+      }
+
+      // 4: Actualizar bloqueo por email
+      function actualizarBloqueoEmail() {
+        const email = document.getElementById("bloqEmail").value;
+        const bloq = document.getElementById("estadoBloqueo").value === "true";
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(email)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            if (!list[0]) return alert("Usuario no encontrado.");
+            const id = list[0].id;
+            return fetch(`/admin/usuarios/${id}/bloqueo`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ bloqueado: bloq }),
+            });
+          })
+          .then((res) => res.json())
+          .then((u) =>
+            alert("Bloqueo actualizado: " + (u.bloqueado ? "Sí" : "No"))
+          )
+          .catch((err) => console.error(err));
+      }
+
+      // 5: Buscar usuarios por email
+      function buscarUsuarios() {
+        const email = document.getElementById("filtroEmail").value;
+        fetch(`/admin/usuarios/search?email=${encodeURIComponent(email)}`)
+          .then((r) => r.json())
+          .then((list) => {
+            if (!list.length) return alert("No se encontraron usuarios.");
+            let html = "<ul>";
+            list.forEach((u) => {
+              html += `<li>${u.nombre} ${u.apellido} (${u.email})</li>`;
+            });
+            html += "</ul>";
+            document.getElementById("resultadosBusqueda").innerHTML = html;
+          });
+      }
+
+      // Eliminar usuario
+      function eliminarUsuario(id) {
+        if (!confirm("¿Eliminar este usuario?")) return;
+        fetch(`/admin/usuarios/${id}`, { method: "DELETE" })
+          .then((r) => r.json())
+          .then((d) => {
+            alert(d.mensaje);
+            cargarUsuarios();
+          });
       }
     </script>
   </body>

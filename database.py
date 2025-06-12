@@ -1,27 +1,31 @@
 # database.py
-# Configuración de la conexión a SQLite.
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import sessionmaker, declarative_base
+# app/database.py
+import os
+from pathlib import Path
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from config import settings
 
-DATABASE_URL = "sqlite:///./taskgenie.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# Convertimos a string
+raw_url = str(settings.database_url)
+
+# Solo para SQLite local: garantizamos carpeta 'instance'
+if raw_url.startswith("sqlite:///"):
+    # extraemos la parte después de sqlite:///
+    relative_path = raw_url.replace("sqlite:///", "")
+    db_file = Path(relative_path)
+    instance_dir = db_file.parent
+
+    # Si la carpeta no existe, la creamos
+    if not instance_dir.exists():
+        instance_dir.mkdir(parents=True, exist_ok=True)
+
+    db_url = f"sqlite:///{relative_path}"
+    connect_args = {"check_same_thread": False}
+else:
+    db_url = raw_url
+    connect_args = {}
+
+engine = create_engine(db_url, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
-
-# Modelo de Usuario
-class Usuario(Base):
-    __tablename__ = "usuarios"
-    id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String, nullable=False)
-    apellido = Column(String, nullable=False)
-    edad = Column(Integer, nullable=False)
-    fecha_nacimiento = Column(String, nullable=False)  # Formato YYYY-MM-DD
-    email = Column(String, unique=True, nullable=False)
-    rol = Column(String, nullable=False)  # Por ejemplo: 'admin', 'usuario', etc.
-    # En producción se debería almacenar la contraseña como hash
-    clave = Column(String, nullable=False)  
-
-# Crear tablas en la BD
-Base.metadata.create_all(bind=engine)
 

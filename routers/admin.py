@@ -1,20 +1,17 @@
 # # Endpoints para administración de usuarios.
 # # routers/admin.py
 # 
-from fastapi import APIRouter, Depends, HTTPException, status
+# routers/admin.py
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from database import SessionLocal, Usuario
-from schemas import (
-    UsuarioResponse,
-    UsuarioUpdateRol,
-    UsuarioUpdateBloqueo,
-    MensajeResponse
-)
 
-router = APIRouter()
+from database import SessionLocal
+from models import Usuario
+from schemas import UsuarioResponse, UsuarioUpdateRol, UsuarioUpdateBloqueo, MensajeResponse
 
-# Dependencia para obtener la sesión de la base de datos.
+router = APIRouter(prefix="/admin", tags=["Administración"])
+
 def get_db():
     db = SessionLocal()
     try:
@@ -22,75 +19,67 @@ def get_db():
     finally:
         db.close()
 
-# Endpoint 1: Listar todos los usuarios
-@router.get("/usuarios", response_model=List[UsuarioResponse])
+@router.get("/usuarios", response_model=List[UsuarioResponse], summary="Listar todos los usuarios")
 def listar_usuarios(db: Session = Depends(get_db)):
-    usuarios = db.query(Usuario).all()
-    return usuarios
+    """Obtiene una lista de todos los usuarios almacenados en la base de datos."""
+    return db.query(Usuario).all()
 
-# Endpoint 2: Obtener el detalle de un usuario específico
-@router.get("/usuarios/{user_id}", response_model=UsuarioResponse)
-def obtener_detalle_usuario(user_id: int, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    return usuario
-
-# Endpoint 3: Actualizar el rol de un usuario
-@router.put("/usuarios/{user_id}/rol", response_model=UsuarioResponse)
-def actualizar_rol(user_id: int, update: UsuarioUpdateRol, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    usuario.rol = update.rol
-    db.commit()
-    db.refresh(usuario)
-    return usuario
-
-# Endpoint 4: Actualizar el estado de bloqueo de un usuario
-@router.put("/usuarios/{user_id}/bloqueo", response_model=UsuarioResponse)
-def actualizar_bloqueo(user_id: int, update: UsuarioUpdateBloqueo, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    usuario.bloqueado = update.bloqueado
-    db.commit()
-    db.refresh(usuario)
-    return usuario
-
-# Endpoint 5 (Opcional): Eliminar un usuario
-@router.delete("/usuarios/{user_id}", response_model=MensajeResponse)
-def eliminar_usuario(user_id: int, db: Session = Depends(get_db)):
-    usuario = db.query(Usuario).filter(Usuario.id == user_id).first()
-    if not usuario:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    db.delete(usuario)
-    db.commit()
-    return {"mensaje": "Usuario eliminado con éxito"}
-
-# (Opcional) Endpoint Extra: Buscar usuarios por filtro
-@router.get("/usuarios/search", response_model=List[UsuarioResponse])
+@router.get("/usuarios/search", response_model=List[UsuarioResponse], summary="Buscar usuarios por email y/o rol")
 def buscar_usuarios(
-    rol: Optional[str] = None,
-    email: Optional[str] = None,
+    rol: Optional[str] = Query(None, description="Filtrar por rol"),
+    email: Optional[str] = Query(None, description="Buscar por email"),
     db: Session = Depends(get_db)
 ):
+    """Busca usuarios filtrando por rol y/o email."""
     query = db.query(Usuario)
     if rol:
         query = query.filter(Usuario.rol == rol)
     if email:
         query = query.filter(Usuario.email.ilike(f"%{email}%"))
+    
     usuarios = query.all()
+    
+    if not usuarios:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No se encontraron usuarios con los criterios dados")
+    
     return usuarios
+
+@router.get("/usuarios/{user_id}", response_model=UsuarioResponse, summary="Obtener detalle de un usuario por ID")
+def detalle_usuario(user_id: int, db: Session = Depends(get_db)):
+    """Obtiene detalles de un usuario por su ID."""
+    usuario = db.get(Usuario, user_id)
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    return usuario
+
+@router.put("/usuarios/{user_id}/rol", response_model=UsuarioResponse, summary="Actualizar rol de un usuario")
+def cambiar_rol(user_id: int, upd: UsuarioUpdateRol, db: Session = Depends(get_db)):
+    """Cambia el rol de un usuario con el ID proporcionado."""
+    usuario = db.get(Usuario, user_id)
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    usuario.rol = upd.rol
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+@router.put("/usuarios/{user_id}/bloqueo", response_model=UsuarioResponse, summary="Actualizar estado de bloqueo de un usuario")
+def cambiar_bloqueo(user_id: int, upd: UsuarioUpdateBloqueo, db: Session = Depends(get_db)):
+    """Actualiza el estado de bloqueo de un usuario con el ID proporcionado."""
+    usuario = db.get(Usuario, user_id)
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    usuario.bloqueado = upd.bloqueado
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+@router.delete("/usuarios/{user_id}", response_model=MensajeResponse, summary="Eliminar un usuario")
+def eliminar_usuario(user_id: int, db: Session = Depends(get_db)):
+    """Elimina un usuario por su ID."""
+    usuario = db.get(Usuario, user_id)
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    db.delete(usuario)
+    db.commit()
+    return MensajeResponse(mensaje="Usuario eliminado con éxito")

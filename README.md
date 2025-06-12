@@ -64,29 +64,47 @@ pip install fastapi uvicorn sqlalchemy pydantic jinja2 python-dotenv bcrypt
 La siguiente es una estructura sugerida del proyecto:
 
 taskgenie/
-│-- app/
-│   │-- __init__.py
-│   │-- main.py         # Punto de arranque de la aplicación.
-│   │-- config.py       # Manejo de variables de entorno.
-│   │-- database.py     # Configuración de la conexión a SQLite.
-│   │-- models.py       # Modelos de SQLAlchemy.
-│   │-- schemas.py      # Schemas con Pydantic.
-│   │-- auth.py         # Funciones de autenticación y manejo de roles.
-│   │-- routers/
-│   │   │-- __init__.py
-│   │   │-- usuarios.py   # Endpoints para registro, edición, búsqueda y bloqueo de usuarios.
-│   │   │-- tareas.py     # Endpoints para la gestión de tareas.
-│   │   │-- perfil.py     # Endpoints para ver y editar la información del perfil.
-│   │   │-- admin.py      # Endpoints para administración de usuarios.
-│   │-- templates/
-│       │-- index.html               # Página de inicio con formulario de login.
-│       │-- login.html               # Vista de login.
-│       │-- registro.html            # Formulario de registro.
-│       │-- dashboard_profesor.html  # Dashboard para profesores.
-│       │-- dashboard_alumno.html    # Dashboard para alumnos.
-│       │-- dashboard_admin.html     # Dashboard para administradores.
-│       └-- ... (otros formularios y vistas)
-└-- .env                           # Archivo de variables sensibles.
+taskgenie/
+│
+├── .env                              # Archivo de variables sensibles.
+│
+└── app/
+    │
+    ├── __init__.py
+    │
+    ├── main.py                       # Punto de arranque de la aplicación.
+    │
+    ├── config.py                     # Manejo de variables de entorno.
+    │
+    ├── database.py                   # Configuración de la conexión a SQLite.
+    │
+    ├── models.py                     # Modelos de SQLAlchemy.
+    │
+    ├── schemas.py                    # Schemas con Pydantic.
+    │
+    ├── auth.py                       # Rutas de login/registro y manejo de roles.
+    │
+    ├── services/
+    │   ├── __init__.py
+    │   └── auth_service.py           # Lógica de autenticación (autenticar_usuario).
+    │
+    ├── routers/
+    │   ├── __init__.py
+    │   ├── usuarios.py               # Registro, edición, búsqueda y bloqueo de usuarios.
+    │   ├── tareas.py                 # Gestión de tareas.
+    │   ├── perfil.py                 # Visualización y edición de perfil.
+    │   └── admin.py                  # Endpoints de administración de usuarios.
+    │
+    └── templates/
+        ├── index.html                # Formulario de login.
+        ├── login.html                # (Vista de login vacía/marcador).
+        ├── registro.html             # Formulario de registro.
+        ├── dashboard.html            # Dashboard genérico.
+        ├── dashboard_profesor.html   # Dashboard para profesores.
+        ├── dashboard_alumno.html     # Dashboard para alumnos.
+        ├── dashboard_admin.html      # Dashboard para administradores.
+        └── errores.html              # Plantilla de error 404.
+
 2.4. Inicializar un Repositorio Git
 bash
 git init

@@ -1,13 +1,16 @@
 # congig.py
 # # Manejo de variables de entorno.
-import os
-from dotenv import load_dotenv
+# config.py
+from pydantic_settings import BaseSettings  # ← Corrección
+from pydantic import AnyUrl
 
-load_dotenv()
+class Settings(BaseSettings):
+    database_url: AnyUrl
+    secret_key: str
+    debug_mode: bool = False
 
-class Settings:
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
-    DEBUG_MODE: bool = os.getenv("DEBUG_MODE", "False").lower() == "true"
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 settings = Settings()

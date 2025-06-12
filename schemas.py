@@ -6,16 +6,17 @@ from datetime import date
 from enum import Enum
 
 class RolEnum(str, Enum):
-    profesor = "profesor"
-    alumno = "alumno"
+    profesor      = "profesor"
+    alumno        = "alumno"
     administrador = "administrador"
 
 class UsuarioCreate(BaseModel):
     nombre: str
     apellido: str
+    edad: int
     email: EmailStr
     clave: str
-    fecha_nacimiento: date  # Ahora date
+    fecha_nacimiento: date
     rol: RolEnum
 
 class UsuarioResponse(BaseModel):
@@ -23,13 +24,13 @@ class UsuarioResponse(BaseModel):
     nombre: str
     apellido: str
     email: EmailStr
+    edad: int
     fecha_nacimiento: date
     rol: RolEnum
+    bloqueado: bool
 
     class Config:
-        # Si estás usando Pydantic V1, deja: orm_mode = True
-        # Para Pydantic V2:
-        from_attributes = True
+        from_attributes = True  # Pydantic V2
 
 class UsuarioUpdateRol(BaseModel):
     rol: RolEnum
@@ -40,3 +41,14 @@ class UsuarioUpdateBloqueo(BaseModel):
 class MensajeResponse(BaseModel):
     mensaje: str
 
+class Tarea(BaseModel):
+    id: int
+    titulo: str
+    descripcion: str
+    importancia: str
+    fecha_entrega: date
+    estado: str
+    solucion: str   
+    creador_id: int
+    asignado_a: int 
+    

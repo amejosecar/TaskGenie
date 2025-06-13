@@ -97,6 +97,8 @@ TaskGenie/
 ----└── registro.html # 📝 Formulario de registro
 ```
 
+![image](https://github.com/user-attachments/assets/2a9987b9-c0fb-4b23-8cd8-0b9994b5102b)
+
 ---
 
 ## 📆 Contexto Formativo

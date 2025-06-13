@@ -51,7 +51,7 @@ root_dir = r"C:\americo\API\TaskGenie"
 output_file = r"C:\americo\API\TaskGenie\utilitys\listado_contenido.txt"
 
 # Definir los directorios de primer nivel que se incluyen (además de la raíz)
-allowed_top = {"routers", "templates"}
+allowed_top = {"routers", "templates", "services"}
 # Definir los directorios que se deben excluir en cualquier nivel
 excludes = {"__pycache__", "utilitys", "venv", ".git"}
 

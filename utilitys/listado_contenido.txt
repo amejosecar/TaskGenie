@@ -8,13 +8,15 @@ C:\americo\API\TaskGenie\models.py
 C:\americo\API\TaskGenie\README.md
 C:\americo\API\TaskGenie\requirements.txt
 C:\americo\API\TaskGenie\schemas.py
-C:\americo\API\TaskGenie\taskgenie.db
 C:\americo\API\TaskGenie\__init__.py
+C:\americo\API\TaskGenie\routers\admin.md
 C:\americo\API\TaskGenie\routers\admin.py
 C:\americo\API\TaskGenie\routers\perfil.py
 C:\americo\API\TaskGenie\routers\tareas.py
 C:\americo\API\TaskGenie\routers\usuarios.py
 C:\americo\API\TaskGenie\routers\__init__.py
+C:\americo\API\TaskGenie\services\auth_service.py
+C:\americo\API\TaskGenie\templates\dashboard.html
 C:\americo\API\TaskGenie\templates\dashboard_admin.html
 C:\americo\API\TaskGenie\templates\dashboard_alumno.html
 C:\americo\API\TaskGenie\templates\dashboard_profesor.html

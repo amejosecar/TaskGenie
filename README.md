@@ -64,6 +64,7 @@
 
 ## 📁 Estructura del Proyecto
 
+```text
 TaskGenie/
 ├── .env # 🔒 Variables de entorno
 ├── .gitignore # 🚫 Archivos ignorados
@@ -94,6 +95,7 @@ TaskGenie/
 ----├── index.html # 🔑 Formulario de login
 ----├── login.html # 🎫 Vista de login
 ----└── registro.html # 📝 Formulario de registro
+```
 
 ---
 
